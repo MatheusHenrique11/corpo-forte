@@ -21,8 +21,8 @@ Flyway · Thymeleaf · Maven.
    ```
 3. Abrir http://localhost:8090 (redireciona para `/perfil`). A avaliação
    física fica em `/avaliacao`, o registro de peso em `/peso`, os
-   equipamentos em `/equipamentos` e o catálogo de exercícios em
-   `/exercicios`.
+   equipamentos em `/equipamentos`, o catálogo de exercícios em
+   `/exercicios` e o treino do dia em `/treino-do-dia`.
 
 ## Testes
 
@@ -53,7 +53,10 @@ arquivo decide em qual dos dois ele entra.
    disponível; catálogo de 54 exercícios (6 padrões de movimento × 3
    níveis), filtrável por nível/padrão/equipamento e pelo que o usuário
    consegue fazer com o que marcou. ✅
-5. Geração automática do treino do dia + checklist.
+5. **Treino do dia** — full body gerado automaticamente (1 exercício por
+   padrão de movimento, sorteado uma vez por dia dentre o que é compatível
+   com nível/equipamento), série×repetição a partir do volume inicial da
+   avaliação física, com checklist de conclusão. ✅
 6. Login com Google (multiusuário).
 7. Comunidade/blog (posts, comentários, curtidas) — desenho futuro.
 # corpo-forte
