@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corpo Forte Tracker — Avaliação física</title>
+  <style>
+    :root{
+      --bg:#f6f3ee; --card:#ffffff; --ink:#1c1a17; --muted:#6b665e;
+      --accent:#c9781f; --accent2:#2f6b4f; --line:#e6e0d6; --tableHead:#efe9dd;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      line-height:1.5; max-width:720px; margin-inline:auto; padding:24px 16px 60px;
+    }
+    h1{font-size:1.4rem; margin-bottom:2px;}
+    .sub{color:var(--muted); margin-top:0; font-size:.88rem;}
+    nav{margin:10px 0 0; font-size:.85rem;}
+    nav a{color:var(--accent2); text-decoration:none; font-weight:600; margin-right:14px;}
+    nav a:hover{text-decoration:underline;}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:16px 0;}
+    label{display:block; font-size:.75rem; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.02em;}
+    input{
+      width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+      background:var(--bg); color:var(--ink); font-size:1rem; margin-bottom:6px;
+    }
+    .erro{color:#b3261e; font-size:.78rem; margin:-2px 0 10px;}
+    .row{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
+    button{background:var(--accent2); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; margin-top:8px;}
+    table{width:100%; border-collapse:collapse; margin-top:4px;}
+    th, td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); font-size:.85rem;}
+    th{color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.02em;}
+    td.destaque{color:var(--accent); font-weight:700;}
+  </style>
+</head>
+<body>
+
+<h1>🥋 Corpo Forte Tracker</h1>
+<p class="sub">Fase 2 — avaliação física e volume de treino inicial.</p>
+<nav>
+  <a th:href="@{/perfil}">Perfil</a>
+  <a th:href="@{/avaliacao}">Avaliação física</a>
+</nav>
+
+<div class="card">
+  <p class="sub">
+    Faça um aquecimento geral de ~10 min, descanse 3 min e teste o número
+    máximo de repetições em cada padrão de movimento abaixo (descanse 3 min
+    entre um teste e outro).
+  </p>
+  <form th:action="@{/avaliacao}" th:object="${avaliacaoForm}" method="post">
+    <div class="row">
+      <div>
+        <label for="repsPuxarVertical">Puxar vertical (reps máx.)</label>
+        <input type="number" step="1" id="repsPuxarVertical" th:field="*{repsPuxarVertical}">
+        <p class="erro" th:if="${#fields.hasErrors('repsPuxarVertical')}" th:errors="*{repsPuxarVertical}"></p>
+      </div>
+      <div>
+        <label for="repsEmpurrarVertical">Empurrar vertical (reps máx.)</label>
+        <input type="number" step="1" id="repsEmpurrarVertical" th:field="*{repsEmpurrarVertical}">
+        <p class="erro" th:if="${#fields.hasErrors('repsEmpurrarVertical')}" th:errors="*{repsEmpurrarVertical}"></p>
+      </div>
+      <div>
+        <label for="repsPernasBilateral">Pernas bilateral (reps máx.)</label>
+        <input type="number" step="1" id="repsPernasBilateral" th:field="*{repsPernasBilateral}">
+        <p class="erro" th:if="${#fields.hasErrors('repsPernasBilateral')}" th:errors="*{repsPernasBilateral}"></p>
+      </div>
+      <div>
+        <label for="repsPuxarHorizontal">Puxar horizontal (reps máx.)</label>
+        <input type="number" step="1" id="repsPuxarHorizontal" th:field="*{repsPuxarHorizontal}">
+        <p class="erro" th:if="${#fields.hasErrors('repsPuxarHorizontal')}" th:errors="*{repsPuxarHorizontal}"></p>
+      </div>
+      <div>
+        <label for="repsEmpurrarHorizontal">Empurrar horizontal (reps máx.)</label>
+        <input type="number" step="1" id="repsEmpurrarHorizontal" th:field="*{repsEmpurrarHorizontal}">
+        <p class="erro" th:if="${#fields.hasErrors('repsEmpurrarHorizontal')}" th:errors="*{repsEmpurrarHorizontal}"></p>
+      </div>
+      <div>
+        <label for="repsPernasUnilateral">Pernas unilateral (reps máx.)</label>
+        <input type="number" step="1" id="repsPernasUnilateral" th:field="*{repsPernasUnilateral}">
+        <p class="erro" th:if="${#fields.hasErrors('repsPernasUnilateral')}" th:errors="*{repsPernasUnilateral}"></p>
+      </div>
+    </div>
+
+    <button type="submit">Salvar avaliação</button>
+  </form>
+</div>
+
+<div class="card" th:if="${resultado != null}">
+  <table>
+    <thead>
+      <tr>
+        <th>Movimento</th>
+        <th>Reps máx. (A)</th>
+        <th>Volume total (B)</th>
+        <th>Volume inicial (C)</th>
+        <th>Incremento (D)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="item : ${resultado}">
+        <td th:text="${item.movimento().rotulo}"></td>
+        <td th:text="${item.repeticoesMaximas()}"></td>
+        <td th:text="${item.volumeTotalTreino()}"></td>
+        <td class="destaque" th:text="${item.volumeInicial()}"></td>
+        <td th:text="${item.incremento()}"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

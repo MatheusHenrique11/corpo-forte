@@ -9,7 +9,7 @@ projeto.
 Java 21 · Spring Boot 3.5 · Spring Data JPA · Bean Validation · PostgreSQL ·
 Flyway · Thymeleaf · Maven.
 
-## Como rodar (Fase 1)
+## Como rodar
 
 1. Subir o banco:
    ```
@@ -19,7 +19,8 @@ Flyway · Thymeleaf · Maven.
    ```
    mvn spring-boot:run
    ```
-3. Abrir http://localhost:8080 (redireciona para `/perfil`).
+3. Abrir http://localhost:8090 (redireciona para `/perfil`). A avaliação
+   física fica em `/avaliacao`.
 
 ## Testes
 
@@ -30,7 +31,8 @@ mvn test
 ## Fases
 
 1. **Perfil** — cadastro do usuário + cálculo de TMB/TDEE/IMC/macros. ✅
-2. Avaliação física + volume de treino inicial.
+2. **Avaliação física** — teste de repetições máximas em 6 padrões de
+   movimento + cálculo do volume de treino inicial. ✅
 3. Registro de peso + tendência semanal.
 4. Equipamentos disponíveis + catálogo de exercícios.
 5. Geração automática do treino do dia + checklist.

@@ -1,6 +1,44 @@
+# Build
 target/
 *.class
+*.jar
+*.war
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
 .idea/
 *.iml
+*.ipr
+*.iws
 .vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# Configuracao local / segredos - nunca versionar
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-local.properties
+*.local.yml
+*.local.yaml
+*.local.properties
+
+# Guia de projeto para o Claude Code - uso local do desenvolvedor,
+# nunca publicado no repositorio (pode referenciar material pessoal
+# do desenvolvedor que nao deve ir pro historico do Git)
+CLAUDE.md

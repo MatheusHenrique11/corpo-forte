@@ -17,6 +17,9 @@
     }
     h1{font-size:1.4rem; margin-bottom:2px;}
     .sub{color:var(--muted); margin-top:0; font-size:.88rem;}
+    nav{margin:10px 0 0; font-size:.85rem;}
+    nav a{color:var(--accent2); text-decoration:none; font-weight:600; margin-right:14px;}
+    nav a:hover{text-decoration:underline;}
     .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:16px 0;}
     label{display:block; font-size:.75rem; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.02em;}
     input, select{
@@ -36,6 +39,10 @@
 
 <h1>🥋 Corpo Forte Tracker</h1>
 <p class="sub">Fase 1 — perfil e cálculo de TMB / TDEE / IMC / macros.</p>
+<nav>
+  <a th:href="@{/perfil}">Perfil</a>
+  <a th:href="@{/avaliacao}">Avaliação física</a>
+</nav>
 
 <div class="card">
   <form th:action="@{/perfil}" th:object="${perfilForm}" method="post">
