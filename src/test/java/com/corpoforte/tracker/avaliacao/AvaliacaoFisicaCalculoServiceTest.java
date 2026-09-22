@@ -1,5 +1,6 @@
 package com.corpoforte.tracker.avaliacao;
 
+import com.corpoforte.tracker.exercicio.MovimentoPadrao;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

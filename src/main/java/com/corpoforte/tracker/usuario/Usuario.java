@@ -1,15 +1,21 @@
 package com.corpoforte.tracker.usuario;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Conta do usuario. email/googleSub ficam nullable por enquanto porque o
@@ -58,6 +64,17 @@ public class Usuario {
     @Column(name = "data_inicio_ciclo", nullable = false)
     private LocalDate dataInicioCiclo;
 
+    // EAGER de proposito: com "open-in-view: false" nao ha sessao Hibernate
+    // aberta fora do repository, e essa colecao e' lida no Controller (view
+    // /exercicios, filtro de compatibilidade) - LAZY quebraria com
+    // LazyInitializationException. Colecao pequena (no maximo 5 itens), sem
+    // custo real de carregar sempre.
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "usuario_equipamento", joinColumns = @JoinColumn(name = "usuario_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "equipamento")
+    private Set<Equipamento> equipamentosDisponiveis = new HashSet<>();
+
     // construtor sem argumentos exigido pelo JPA/Hibernate para instanciar
     // a entidade via reflection ao carregar do banco
     protected Usuario() {
@@ -95,6 +112,15 @@ public class Usuario {
      */
     public void atualizarPeso(double pesoKg) {
         this.pesoKg = pesoKg;
+    }
+
+    /**
+     * Usado pelo modulo de equipamentos/catalogo de exercicios (Fase 4):
+     * substitui o conjunto inteiro, nao acumula - marcar a tela de novo com
+     * menos itens precisa remover o que foi desmarcado.
+     */
+    public void atualizarEquipamentos(Set<Equipamento> equipamentos) {
+        this.equipamentosDisponiveis = new HashSet<>(equipamentos);
     }
 
     public Long getId() {
@@ -139,5 +165,9 @@ public class Usuario {
 
     public LocalDate getDataInicioCiclo() {
         return dataInicioCiclo;
+    }
+
+    public Set<Equipamento> getEquipamentosDisponiveis() {
+        return equipamentosDisponiveis;
     }
 }

@@ -1,5 +1,6 @@
 package com.corpoforte.tracker.avaliacao;
 
+import com.corpoforte.tracker.exercicio.MovimentoPadrao;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

@@ -20,7 +20,9 @@ Flyway · Thymeleaf · Maven.
    mvn spring-boot:run
    ```
 3. Abrir http://localhost:8090 (redireciona para `/perfil`). A avaliação
-   física fica em `/avaliacao`, o registro de peso em `/peso`.
+   física fica em `/avaliacao`, o registro de peso em `/peso`, os
+   equipamentos em `/equipamentos` e o catálogo de exercícios em
+   `/exercicios`.
 
 ## Testes
 
@@ -47,7 +49,10 @@ arquivo decide em qual dos dois ele entra.
    movimento + cálculo do volume de treino inicial. ✅
 3. **Registro de peso** — histórico diário de peso + tendência semanal
    (média da semana atual vs. semana anterior). ✅
-4. Equipamentos disponíveis + catálogo de exercícios.
+4. **Equipamentos + catálogo de exercícios** — usuário marca o que tem
+   disponível; catálogo de 54 exercícios (6 padrões de movimento × 3
+   níveis), filtrável por nível/padrão/equipamento e pelo que o usuário
+   consegue fazer com o que marcou. ✅
 5. Geração automática do treino do dia + checklist.
 6. Login com Google (multiusuário).
 7. Comunidade/blog (posts, comentários, curtidas) — desenho futuro.
