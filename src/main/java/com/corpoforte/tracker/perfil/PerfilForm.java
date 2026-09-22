@@ -12,17 +12,14 @@ import jakarta.validation.constraints.NotNull;
 /**
  * DTO ligado ao <form> do Thymeleaf (nao e' a entidade JPA). As anotacoes
  * de bean validation sao a "regra de negocio rigida" pedida: o Controller
- * nunca chega a chamar o calculo com um valor fora dessas faixas.
+ * nunca chega a chamar o calculo com um valor fora dessas faixas. Peso nao
+ * entra aqui a partir da Fase 3 - quem atualiza peso e' o modulo de
+ * registro de peso, pra nao ter duas fontes de verdade pro mesmo dado.
  */
 public class PerfilForm {
 
     @NotBlank(message = "Informe seu nome")
     private String nome;
-
-    @NotNull(message = "Informe seu peso")
-    @DecimalMin(value = "30.0", message = "Peso minimo: 30 kg")
-    @DecimalMax(value = "300.0", message = "Peso maximo: 300 kg")
-    private Double pesoKg;
 
     @NotNull(message = "Informe sua altura")
     @DecimalMin(value = "100.0", message = "Altura minima: 100 cm")
@@ -46,14 +43,6 @@ public class PerfilForm {
 
     public void setNome(String nome) {
         this.nome = nome;
-    }
-
-    public Double getPesoKg() {
-        return pesoKg;
-    }
-
-    public void setPesoKg(Double pesoKg) {
-        this.pesoKg = pesoKg;
     }
 
     public Double getAlturaCm() {

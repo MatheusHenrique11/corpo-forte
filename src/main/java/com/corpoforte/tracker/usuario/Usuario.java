@@ -74,14 +74,27 @@ public class Usuario {
         this.dataInicioCiclo = dataInicioCiclo;
     }
 
-    public void atualizarPerfil(String nome, double pesoKg, double alturaCm, int idade,
+    /**
+     * Peso nao entra mais aqui a partir da Fase 3: o peso atual passa a vir
+     * so do registro de peso (atualizarPeso), pra nao ter duas fontes de
+     * verdade pro mesmo dado.
+     */
+    public void atualizarPerfil(String nome, double alturaCm, int idade,
                                  ObjetivoTreino objetivo, NivelTreino nivel) {
         this.nome = nome;
-        this.pesoKg = pesoKg;
         this.alturaCm = alturaCm;
         this.idade = idade;
         this.objetivo = objetivo;
         this.nivel = nivel;
+    }
+
+    /**
+     * Usado pelo modulo de registro de peso: o registro mais recente por
+     * data vira o peso atual do perfil (usado no TMB/TDEE), sem precisar
+     * passar pelo formulario de perfil inteiro.
+     */
+    public void atualizarPeso(double pesoKg) {
+        this.pesoKg = pesoKg;
     }
 
     public Long getId() {

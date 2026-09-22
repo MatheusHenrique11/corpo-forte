@@ -42,6 +42,7 @@
 <nav>
   <a th:href="@{/perfil}">Perfil</a>
   <a th:href="@{/avaliacao}">Avaliação física</a>
+  <a th:href="@{/peso}">Peso</a>
 </nav>
 
 <div class="card">
@@ -53,8 +54,10 @@
     <div class="row">
       <div>
         <label for="pesoKg">Peso atual (kg)</label>
-        <input type="number" step="0.1" id="pesoKg" th:field="*{pesoKg}">
-        <p class="erro" th:if="${#fields.hasErrors('pesoKg')}" th:errors="*{pesoKg}"></p>
+        <input type="text" id="pesoKg" readonly="readonly" th:value="${pesoAtual} + ' kg'">
+        <p class="sub" style="margin:-2px 0 10px;">
+          Atualizado em <a th:href="@{/peso}">/peso</a>, não aqui.
+        </p>
       </div>
       <div>
         <label for="alturaCm">Altura (cm)</label>

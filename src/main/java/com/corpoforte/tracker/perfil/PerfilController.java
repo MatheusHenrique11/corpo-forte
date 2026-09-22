@@ -32,6 +32,7 @@ public class PerfilController {
     public String exibirPerfil(Model model) {
         Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
         model.addAttribute("perfilForm", paraFormulario(usuario));
+        model.addAttribute("pesoAtual", usuario.getPesoKg());
         model.addAttribute("resultado", calcularResultado(usuario));
         adicionarOpcoesDeEnum(model);
         return "perfil";
@@ -39,14 +40,15 @@ public class PerfilController {
 
     @PostMapping("/perfil")
     public String salvarPerfil(@Valid @ModelAttribute("perfilForm") PerfilForm form, BindingResult bindingResult, Model model) {
+        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+        model.addAttribute("pesoAtual", usuario.getPesoKg());
         adicionarOpcoesDeEnum(model);
 
         if (bindingResult.hasErrors()) {
             return "perfil";
         }
 
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
-        usuario.atualizarPerfil(form.getNome(), form.getPesoKg(), form.getAlturaCm(),
+        usuario.atualizarPerfil(form.getNome(), form.getAlturaCm(),
                 form.getIdade(), form.getObjetivo(), form.getNivel());
         usuarioAtualService.salvar(usuario);
 
@@ -56,7 +58,6 @@ public class PerfilController {
     private PerfilForm paraFormulario(Usuario usuario) {
         PerfilForm form = new PerfilForm();
         form.setNome(usuario.getNome());
-        form.setPesoKg(usuario.getPesoKg());
         form.setAlturaCm(usuario.getAlturaCm());
         form.setIdade(usuario.getIdade());
         form.setObjetivo(usuario.getObjetivo());
