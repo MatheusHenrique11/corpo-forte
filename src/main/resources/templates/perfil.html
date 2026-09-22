@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Corpo Forte Tracker — Perfil</title>
+  <style>
+    :root{
+      --bg:#f6f3ee; --card:#ffffff; --ink:#1c1a17; --muted:#6b665e;
+      --accent:#c9781f; --accent2:#2f6b4f; --line:#e6e0d6; --tableHead:#efe9dd;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      line-height:1.5; max-width:720px; margin-inline:auto; padding:24px 16px 60px;
+    }
+    h1{font-size:1.4rem; margin-bottom:2px;}
+    .sub{color:var(--muted); margin-top:0; font-size:.88rem;}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:16px 0;}
+    label{display:block; font-size:.75rem; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.02em;}
+    input, select{
+      width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+      background:var(--bg); color:var(--ink); font-size:1rem; margin-bottom:6px;
+    }
+    .erro{color:#b3261e; font-size:.78rem; margin:-2px 0 10px;}
+    .row{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+    button{background:var(--accent2); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; margin-top:8px;}
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:4px;}
+    .stat{background:var(--tableHead); border-radius:10px; padding:10px 12px; text-align:center;}
+    .stat b{display:block; font-size:1.15rem; color:var(--accent);}
+    .stat span{font-size:.7rem; color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<h1>🥋 Corpo Forte Tracker</h1>
+<p class="sub">Fase 1 — perfil e cálculo de TMB / TDEE / IMC / macros.</p>
+
+<div class="card">
+  <form th:action="@{/perfil}" th:object="${perfilForm}" method="post">
+    <label for="nome">Nome</label>
+    <input type="text" id="nome" th:field="*{nome}">
+    <p class="erro" th:if="${#fields.hasErrors('nome')}" th:errors="*{nome}"></p>
+
+    <div class="row">
+      <div>
+        <label for="pesoKg">Peso atual (kg)</label>
+        <input type="number" step="0.1" id="pesoKg" th:field="*{pesoKg}">
+        <p class="erro" th:if="${#fields.hasErrors('pesoKg')}" th:errors="*{pesoKg}"></p>
+      </div>
+      <div>
+        <label for="alturaCm">Altura (cm)</label>
+        <input type="number" step="0.5" id="alturaCm" th:field="*{alturaCm}">
+        <p class="erro" th:if="${#fields.hasErrors('alturaCm')}" th:errors="*{alturaCm}"></p>
+      </div>
+      <div>
+        <label for="idade">Idade</label>
+        <input type="number" step="1" id="idade" th:field="*{idade}">
+        <p class="erro" th:if="${#fields.hasErrors('idade')}" th:errors="*{idade}"></p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="objetivo">Objetivo</label>
+        <select id="objetivo" th:field="*{objetivo}">
+          <option th:each="op : ${objetivos}" th:value="${op}"
+                  th:text="${op.name() == 'PERDA_GORDURA'} ? '🔥 Perder gordura' : '💪 Ganhar massa'"></option>
+        </select>
+      </div>
+      <div>
+        <label for="nivel">Nível de treino</label>
+        <select id="nivel" th:field="*{nivel}">
+          <option th:each="n : ${niveis}" th:value="${n}"
+                  th:text="${n.name() == 'INICIANTE'} ? '🌱 Iniciante' : (${n.name() == 'INTERMEDIARIO'} ? '⚙️ Intermediário' : '🏆 Avançado')"></option>
+        </select>
+      </div>
+    </div>
+
+    <button type="submit">Salvar perfil</button>
+  </form>
+</div>
+
+<div class="card" th:if="${resultado != null}">
+  <div class="grid">
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.tmb())}"></b><span>TMB / RMR (kcal)</span></div>
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.tdee())}"></b><span>Gasto total (kcal)</span></div>
+    <div class="stat"><b th:text="${#numbers.formatDecimal(resultado.imc(), 1, 1)}"></b><span th:text="'IMC — ' + ${resultado.classificacaoImc().rotulo}"></span></div>
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.metaCalorica())}"></b><span th:text="${resultado.rotuloMeta()}"></span></div>
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.proteinaG())} + 'g'"></b><span>Proteína/dia</span></div>
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.gorduraG())} + 'g'"></b><span>Gordura/dia</span></div>
+    <div class="stat"><b th:text="${T(java.lang.Math).round(resultado.carboidratoG())} + 'g'"></b><span>Carboidrato/dia</span></div>
+  </div>
+</div>
+
+</body>
+</html>

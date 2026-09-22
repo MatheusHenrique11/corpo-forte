@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: corpo-forte-db
+    environment:
+      POSTGRES_DB: corpo_forte
+      POSTGRES_USER: corpo_forte
+      POSTGRES_PASSWORD: corpo_forte
+    ports:
+      - "5433:5432"
+    volumes:
+      - corpo-forte-db-data:/var/lib/postgresql/data
+
+volumes:
+  corpo-forte-db-data:
