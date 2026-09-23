@@ -103,4 +103,8 @@ arquivo decide em qual dos dois ele entra.
    treino concluído (usa o incremento que a Fase 2 já calculava e ninguém
    consumia), em ciclos de 8 semanas com aviso pra refazer a avaliação
    física ao fim. ✅
+9. **Histórico de avaliação física** — refazer a avaliação deixa de apagar
+   a anterior: uma medição por dia por usuário, com comparação movimento a
+   movimento entre a avaliação atual e a anterior ("10 → 15, +5") e
+   histórico completo na tela `/avaliacao`. ✅
 # corpo-forte

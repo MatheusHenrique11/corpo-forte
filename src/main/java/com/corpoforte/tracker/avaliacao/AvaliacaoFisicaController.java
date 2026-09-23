@@ -21,22 +21,34 @@ public class AvaliacaoFisicaController {
     private final UsuarioAtualService usuarioAtualService;
     private final AvaliacaoFisicaService avaliacaoFisicaService;
     private final AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService;
+    private final AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService;
 
     public AvaliacaoFisicaController(UsuarioAtualService usuarioAtualService,
                                       AvaliacaoFisicaService avaliacaoFisicaService,
-                                      AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService) {
+                                      AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService,
+                                      AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService) {
         this.usuarioAtualService = usuarioAtualService;
         this.avaliacaoFisicaService = avaliacaoFisicaService;
         this.avaliacaoFisicaCalculoService = avaliacaoFisicaCalculoService;
+        this.avaliacaoFisicaComparacaoService = avaliacaoFisicaComparacaoService;
     }
 
     @GetMapping("/avaliacao")
     public String exibirAvaliacao(@AuthenticationPrincipal OidcUser principal, Model model) {
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
-        Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterDoUsuario(usuario.getId());
+        List<AvaliacaoFisica> historico = avaliacaoFisicaService.listarHistorico(usuario.getId());
+        Optional<AvaliacaoFisica> avaliacao = historico.stream().findFirst();
 
         model.addAttribute("avaliacaoForm", avaliacao.map(this::paraFormulario).orElseGet(AvaliacaoFisicaForm::new));
         avaliacao.ifPresent(a -> model.addAttribute("resultado", calcularResultado(a)));
+        model.addAttribute("historico", historico);
+
+        // comparacao so existe a partir da segunda avaliacao
+        if (historico.size() >= 2) {
+            model.addAttribute("comparacao", avaliacaoFisicaComparacaoService.comparar(
+                    calcularResultado(historico.get(0)), calcularResultado(historico.get(1))));
+            model.addAttribute("dataAnterior", historico.get(1).getDataAvaliacao());
+        }
 
         return "avaliacao";
     }

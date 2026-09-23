@@ -31,7 +31,7 @@ public class TreinoDoDiaController {
     @GetMapping("/treino-do-dia")
     public String exibirTreinoDoDia(@AuthenticationPrincipal OidcUser principal, Model model) {
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
-        Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterDoUsuario(usuario.getId());
+        Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterMaisRecenteDoUsuario(usuario.getId());
 
         if (avaliacao.isEmpty()) {
             model.addAttribute("semAvaliacao", true);

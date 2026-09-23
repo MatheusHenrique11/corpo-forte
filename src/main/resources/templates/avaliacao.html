@@ -122,5 +122,60 @@
   </table>
 </div>
 
+<div class="card" th:if="${comparacao != null}">
+  <p class="sub" style="margin-bottom:8px;">
+    Comparado com sua avaliação de
+    <b th:text="${#temporals.format(dataAnterior, 'dd/MM/yyyy')}"></b>:
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Movimento</th>
+        <th>Antes</th>
+        <th>Agora</th>
+        <th>Diferença</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="item : ${comparacao}">
+        <td th:text="${item.movimento().rotulo}"></td>
+        <td th:text="${item.repsAnterior()}"></td>
+        <td th:text="${item.repsAtual()}"></td>
+        <td th:style="${item.diferenca()} > 0 ? 'color:#2f6b4f;font-weight:700'
+                      : (${item.diferenca()} &lt; 0 ? 'color:#b3261e;font-weight:700' : 'color:#6b665e')"
+            th:text="(${item.diferenca()} > 0 ? '+' : '') + ${item.diferenca()}"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card" th:if="${historico != null and #lists.size(historico) > 1}">
+  <p class="sub" style="margin-bottom:8px;">Histórico de avaliações (repetições máximas):</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Puxar vert.</th>
+        <th>Empurrar vert.</th>
+        <th>Pernas bilat.</th>
+        <th>Puxar horiz.</th>
+        <th>Empurrar horiz.</th>
+        <th>Pernas unilat.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="avaliacao : ${historico}">
+        <td th:text="${#temporals.format(avaliacao.dataAvaliacao, 'dd/MM/yyyy')}"></td>
+        <td th:text="${avaliacao.repsPuxarVertical}"></td>
+        <td th:text="${avaliacao.repsEmpurrarVertical}"></td>
+        <td th:text="${avaliacao.repsPernasBilateral}"></td>
+        <td th:text="${avaliacao.repsPuxarHorizontal}"></td>
+        <td th:text="${avaliacao.repsEmpurrarHorizontal}"></td>
+        <td th:text="${avaliacao.repsPernasUnilateral}"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 </body>
 </html>

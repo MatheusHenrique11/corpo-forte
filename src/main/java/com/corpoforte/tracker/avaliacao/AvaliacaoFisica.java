@@ -6,25 +6,36 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
 
 /**
- * Um registro por usuario, sobrescrito a cada novo teste (sem historico
- * ainda - tendencia ao longo do tempo e' escopo da Fase 3, so pra peso).
+ * Historico de avaliacoes desde a Fase 9: uma linha por dia por usuario
+ * (upsert por data - corrigir um numero no mesmo dia atualiza a medicao do
+ * dia em vez de criar uma falsa). Ate a Fase 8 era uma linha por usuario,
+ * sobrescrita a cada teste; a Fase 8 passou a pedir reavaliacao ao fim do
+ * ciclo, e obedecer esse aviso apagava a medicao anterior - justamente a
+ * que torna visivel o progresso.
+ *
+ * "Avaliacao atual" = a mais recente por data (ver
+ * AvaliacaoFisicaService.obterMaisRecenteDoUsuario), inclusive pro ciclo da
+ * periodizacao, que e' ancorado nessa data.
+ *
  * usuarioId e' um Long simples, sem @ManyToOne: mantem a entidade isolada e
  * testavel sem carregar Usuario junto, no mesmo espirito de simplicidade do
  * resto do projeto, que ainda nao usa relacoes JPA em lugar nenhum.
  */
 @Entity
-@Table(name = "avaliacao_fisica")
+@Table(name = "avaliacao_fisica",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"usuario_id", "data_avaliacao"}))
 public class AvaliacaoFisica {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "usuario_id", nullable = false, unique = true)
+    @Column(name = "usuario_id", nullable = false)
     private Long usuarioId;
 
     @Column(name = "data_avaliacao", nullable = false)
