@@ -50,6 +50,10 @@ public class TreinoItem {
         this.concluido = !this.concluido;
     }
 
+    public void definirConclusao(boolean concluido) {
+        this.concluido = concluido;
+    }
+
     public Long getId() {
         return id;
     }

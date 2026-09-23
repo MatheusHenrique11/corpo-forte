@@ -1,5 +1,8 @@
 package com.corpoforte.tracker.avaliacao;
 
+import com.corpoforte.tracker.api.Cursor;
+import com.corpoforte.tracker.api.Pagina;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -18,9 +21,15 @@ import java.util.Optional;
 public class AvaliacaoFisicaService {
 
     private final AvaliacaoFisicaRepository avaliacaoFisicaRepository;
+    private final AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService;
+    private final AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService;
 
-    public AvaliacaoFisicaService(AvaliacaoFisicaRepository avaliacaoFisicaRepository) {
+    public AvaliacaoFisicaService(AvaliacaoFisicaRepository avaliacaoFisicaRepository,
+                                  AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService,
+                                  AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService) {
         this.avaliacaoFisicaRepository = avaliacaoFisicaRepository;
+        this.avaliacaoFisicaCalculoService = avaliacaoFisicaCalculoService;
+        this.avaliacaoFisicaComparacaoService = avaliacaoFisicaComparacaoService;
     }
 
     public Optional<AvaliacaoFisica> obterMaisRecenteDoUsuario(Long usuarioId) {
@@ -30,6 +39,43 @@ public class AvaliacaoFisicaService {
     /** Mais recente primeiro. */
     public List<AvaliacaoFisica> listarHistorico(Long usuarioId) {
         return avaliacaoFisicaRepository.findByUsuarioIdOrderByDataAvaliacaoDesc(usuarioId);
+    }
+
+    /** Mesmo historico, paginado por cursor (API). */
+    public Pagina<AvaliacaoFisica> paginaDoHistorico(Long usuarioId, Cursor cursor, int tamanho) {
+        Limit limite = Limit.of(tamanho + 1);
+        List<AvaliacaoFisica> buscadas = cursor == null
+                ? avaliacaoFisicaRepository.findByUsuarioIdOrderByDataAvaliacaoDesc(usuarioId, limite)
+                : avaliacaoFisicaRepository.findByUsuarioIdAndDataAvaliacaoLessThanOrderByDataAvaliacaoDesc(
+                        usuarioId, cursor.comoData(), limite);
+        return Pagina.deBuscaComUmAMais(buscadas, tamanho,
+                avaliacao -> Cursor.apos(avaliacao.getDataAvaliacao(), avaliacao.getId()));
+    }
+
+    /** Volumes (B, C, D) de uma avaliacao; nunca persistidos, sempre
+     * recalculados (Fase 2). */
+    public List<AvaliacaoFisicaItemResultado> resultadoDe(AvaliacaoFisica avaliacao) {
+        return avaliacaoFisicaCalculoService.calcular(
+                avaliacao.getRepsPuxarVertical(), avaliacao.getRepsEmpurrarVertical(),
+                avaliacao.getRepsPernasBilateral(), avaliacao.getRepsPuxarHorizontal(),
+                avaliacao.getRepsEmpurrarHorizontal(), avaliacao.getRepsPernasUnilateral());
+    }
+
+    /**
+     * Avaliacao mais recente contra a anterior. Vazio com menos de duas:
+     * nao ha o que comparar. Mora aqui (e nao no controller da tela, onde
+     * nasceu na Fase 9) porque a tela e a API precisam da mesma regra.
+     */
+    public Optional<ComparacaoAvaliacoes> compararUltimas(Long usuarioId) {
+        List<AvaliacaoFisica> ultimas = avaliacaoFisicaRepository.findByUsuarioIdOrderByDataAvaliacaoDesc(
+                usuarioId, Limit.of(2));
+        if (ultimas.size() < 2) {
+            return Optional.empty();
+        }
+        AvaliacaoFisica atual = ultimas.get(0);
+        AvaliacaoFisica anterior = ultimas.get(1);
+        return Optional.of(new ComparacaoAvaliacoes(atual.getDataAvaliacao(), anterior.getDataAvaliacao(),
+                avaliacaoFisicaComparacaoService.comparar(resultadoDe(atual), resultadoDe(anterior))));
     }
 
     /**

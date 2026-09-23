@@ -27,10 +27,4 @@ public interface CurtidaRepository extends JpaRepository<Curtida, Long> {
      */
     @Query("select c.postId as postId, count(c) as total from Curtida c where c.postId in :postIds group by c.postId")
     List<ContagemPorPost> contarPorPost(@Param("postIds") Collection<Long> postIds);
-
-    interface ContagemPorPost {
-        Long getPostId();
-
-        long getTotal();
-    }
 }

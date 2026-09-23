@@ -8,6 +8,6 @@ import java.time.LocalDateTime;
  * PostService.apagarComentario aplica, pra tela nunca oferecer um botao
  * que o servidor recusaria.
  */
-public record ComentarioView(Long id, String autorNome, String texto, LocalDateTime criadoEm,
+public record ComentarioView(Long id, Long autorId, String autorNome, String texto, LocalDateTime criadoEm,
                              boolean podeApagar) {
 }

@@ -1,5 +1,6 @@
 package com.corpoforte.tracker.avaliacao;
 
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -17,4 +18,12 @@ public interface AvaliacaoFisicaRepository extends JpaRepository<AvaliacaoFisica
     Optional<AvaliacaoFisica> findByUsuarioIdAndDataAvaliacao(Long usuarioId, LocalDate dataAvaliacao);
 
     List<AvaliacaoFisica> findByUsuarioIdOrderByDataAvaliacaoDesc(Long usuarioId);
+
+    /** Paginacao por cursor (API): data_avaliacao e' unica por usuario, entao
+     * sozinha ja define a posicao - o unique(usuario_id, data_avaliacao) e' o
+     * indice que atende as duas consultas. */
+    List<AvaliacaoFisica> findByUsuarioIdOrderByDataAvaliacaoDesc(Long usuarioId, Limit limite);
+
+    List<AvaliacaoFisica> findByUsuarioIdAndDataAvaliacaoLessThanOrderByDataAvaliacaoDesc(
+            Long usuarioId, LocalDate dataAvaliacao, Limit limite);
 }

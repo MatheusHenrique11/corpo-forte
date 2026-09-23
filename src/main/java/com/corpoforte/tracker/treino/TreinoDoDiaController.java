@@ -1,7 +1,5 @@
 package com.corpoforte.tracker.treino;
 
-import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
-import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,28 +16,21 @@ import java.util.Optional;
 public class TreinoDoDiaController {
 
     private final UsuarioAtualService usuarioAtualService;
-    private final AvaliacaoFisicaService avaliacaoFisicaService;
     private final TreinoDoDiaService treinoDoDiaService;
 
-    public TreinoDoDiaController(UsuarioAtualService usuarioAtualService, AvaliacaoFisicaService avaliacaoFisicaService,
-                                  TreinoDoDiaService treinoDoDiaService) {
+    public TreinoDoDiaController(UsuarioAtualService usuarioAtualService, TreinoDoDiaService treinoDoDiaService) {
         this.usuarioAtualService = usuarioAtualService;
-        this.avaliacaoFisicaService = avaliacaoFisicaService;
         this.treinoDoDiaService = treinoDoDiaService;
     }
 
     @GetMapping("/treino-do-dia")
     public String exibirTreinoDoDia(@AuthenticationPrincipal OidcUser principal, Model model) {
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
-        Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterMaisRecenteDoUsuario(usuario.getId());
+        Optional<TreinoDoDiaView> treino = treinoDoDiaService.obterOuGerarDoDia(usuario);
 
-        if (avaliacao.isEmpty()) {
-            model.addAttribute("semAvaliacao", true);
-            return "treino-do-dia";
-        }
-
-        TreinoDoDiaView treino = treinoDoDiaService.obterOuGerarDoDia(usuario, avaliacao.get());
-        model.addAttribute("treino", treino);
+        treino.ifPresentOrElse(
+                encontrado -> model.addAttribute("treino", encontrado),
+                () -> model.addAttribute("semAvaliacao", true));
 
         return "treino-do-dia";
     }

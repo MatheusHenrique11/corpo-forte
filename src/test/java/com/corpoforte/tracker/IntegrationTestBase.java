@@ -1,7 +1,10 @@
 package com.corpoforte.tracker;
 
+import com.corpoforte.tracker.auth.EmissorTokens;
 import com.corpoforte.tracker.auth.GoogleDeTesteConfig;
 import com.corpoforte.tracker.auth.GoogleIdTokenDeTeste;
+import com.corpoforte.tracker.usuario.Usuario;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
@@ -58,5 +61,14 @@ public abstract class IntegrationTestBase {
 
     static {
         POSTGRES.start();
+    }
+
+    @Autowired
+    private EmissorTokens emissorTokens;
+
+    /** Valor do cabecalho Authorization com um access token valido pro
+     * usuario - o que um cliente da API manda em toda requisicao. */
+    protected String bearer(Usuario usuario) {
+        return "Bearer " + emissorTokens.emitir(usuario.getId()).accessToken();
     }
 }

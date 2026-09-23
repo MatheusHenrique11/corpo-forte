@@ -18,6 +18,8 @@ import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +30,11 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -51,7 +57,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *                       compartilhado, não ID de entidade de outro usuário)
  *                       e Set<Equipamento> em EquipamentoController (grava
  *                       no próprio usuário resolvido pelo login, não lê
- *                       por ID). Nenhum é um ID de recurso.
+ *                       por ID). Nenhum é um ID de recurso. Fase 11: o
+ *                       "cursor" das listas paginadas da API carrega uma
+ *                       POSICAO (data ou instante + id), nao um recurso -
+ *                       toda consulta paginada continua filtrada pelo
+ *                       usuario do token (peso, avaliacao) ou e' publica
+ *                       (feed, comentarios). Cursor forjado com a posicao
+ *                       de outra conta nao mostra nada dela
+ *                       (IsolamentoEntreUsuariosIT).
  *   @ModelAttribute  - os 3 forms do app (PerfilForm, AvaliacaoFisicaForm,
  *                       RegistroPesoForm): nenhum campo termina em "Id" -
  *                       só valores (nome, altura, reps, data, peso etc.),
@@ -63,7 +76,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *                       Nenhum e' ID de recurso: sao credenciais, e quem
  *                       as tem ja e' o dono (o refresh token e' um segredo
  *                       aleatorio de 256 bits, nao da pra adivinhar nem
- *                       incrementar).
+ *                       incrementar). Fase 11: a API reusa os 5 forms da
+ *                       tela (PerfilForm, AvaliacaoFisicaForm,
+ *                       RegistroPesoForm, PostForm, ComentarioForm) e
+ *                       EquipamentosRequisicao - nenhum com campo de ID.
  *
  * Levantamento completo, os endpoints do app (grep por
  * @GetMapping/@PostMapping em todos os controllers):
@@ -91,12 +107,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   POST /api/v1/auth/logout                           sem ID (Fase 10; idem)
  *   GET  /api/v1/me                                    sem ID (Fase 10; conta dona do access token)
  *   GET  /dev/token-api                                sem ID (Fase 10; so' no perfil dev, usuario da sessao)
+ *   GET  /api/v1/perfil, PUT /api/v1/perfil            sem ID (Fase 11)
+ *   GET  /api/v1/avaliacoes, POST /api/v1/avaliacoes   sem ID (Fase 11; cursor e' posicao)
+ *   GET  /api/v1/avaliacoes/comparacao                 sem ID (Fase 11)
+ *   GET  /api/v1/pesos, POST /api/v1/pesos             sem ID (Fase 11; cursor e' posicao)
+ *   GET  /api/v1/pesos/tendencia                       sem ID (Fase 11)
+ *   GET  /api/v1/equipamentos, PUT /api/v1/equipamentos  sem ID (Fase 11)
+ *   GET  /api/v1/exercicios                            sem ID (Fase 11; filtros de enum)
+ *   GET  /api/v1/treino-do-dia                         sem ID (Fase 11)
+ *   PUT  /api/v1/treino-do-dia/itens/{itemId}/conclusao     RECEBE ID (Fase 11) - proibido cruzado
+ *   DELETE /api/v1/treino-do-dia/itens/{itemId}/conclusao  RECEBE ID (Fase 11) - proibido cruzado
+ *   GET  /api/v1/feed/descobrir                        sem ID (Fase 11; cursor e' posicao)
+ *   POST /api/v1/posts                                 sem ID (Fase 11)
+ *   DELETE /api/v1/posts/{postId}                      RECEBE ID (Fase 11) - proibido cruzado
+ *   GET  /api/v1/posts/{postId}/comentarios            RECEBE ID (Fase 11) - permitido cruzado
+ *   POST /api/v1/posts/{postId}/comentarios            RECEBE ID (Fase 11) - permitido cruzado
+ *   DELETE /api/v1/comentarios/{comentarioId}          RECEBE ID (Fase 11) - autor ou dono do post
+ *   PUT  /api/v1/posts/{postId}/curtida                RECEBE ID (Fase 11) - permitido cruzado
+ *   DELETE /api/v1/posts/{postId}/curtida              RECEBE ID (Fase 11) - permitido cruzado
  *
- * Conclusao: 5 dos 23 endpoints aceitam um ID de recurso vindo do cliente,
- * confirmado nos quatro vetores (não só @PathVariable). Os outros 18
- * operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
+ * Conclusao: 13 dos 45 endpoints aceitam um ID de recurso vindo do
+ * cliente, confirmado nos quatro vetores (não só @PathVariable). Os outros
+ * 32 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual, pela sessao ou pelo access
- * token) ou sobre enums de filtro sem significado de ID.
+ * token) ou sobre enums de filtro sem significado de ID. Os 8 da API
+ * repetem as regras dos equivalentes da tela e tem teste proprio abaixo,
+ * porque sao outra porta de entrada: uma checagem de dono que so' a
+ * rota da tela fizesse passaria despercebida.
  *
  * ATENCAO - os 2 endpoints da Fase 7b mudam a NATUREZA desta auditoria.
  * Ate a Fase 6, "receber ID de recurso de outro usuario" era sempre um
@@ -304,5 +341,98 @@ class EndpointsComIdIT extends IntegrationTestBase {
         mockMvc.perform(post("/feed/comentarios/999999/apagar")
                         .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---- API (Fase 11): as mesmas regras, pela outra porta de entrada ----
+
+    @Test
+    void apiMarcarOuDesmarcarItemDeTreinoDeOutroUsuarioDevolve404() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        AvaliacaoFisica avaliacaoDeA = avaliacaoFisicaService.salvar(a.getId(), 10, 15, 40, 20, 30, 50);
+        Long itemDeA = treinoDoDiaService.obterOuGerarDoDia(a, avaliacaoDeA).itens().get(0).itemId();
+        String rota = "/api/v1/treino-do-dia/itens/" + itemDeA + "/conclusao";
+
+        mockMvc.perform(put(rota).header(HttpHeaders.AUTHORIZATION, bearer(b))).andExpect(status().isNotFound());
+        mockMvc.perform(delete(rota).header(HttpHeaders.AUTHORIZATION, bearer(b))).andExpect(status().isNotFound());
+        mockMvc.perform(put("/api/v1/treino-do-dia/itens/999999/conclusao").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+
+        assertThat(treinoDoDiaService.obterOuGerarDoDia(a, avaliacaoDeA).itens().get(0).concluido()).isFalse();
+    }
+
+    @Test
+    void apiCurtirComentarELerComentariosDePostDeOutroUsuarioEhPermitidoDeProposito() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+        String rota = "/api/v1/posts/" + postDeA.getId();
+
+        mockMvc.perform(put(rota + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post(rota + "/comentarios").header(HttpHeaders.AUTHORIZATION, bearer(b))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"texto\": \"Parabéns!\"}"))
+                .andExpect(status().isCreated())
+                // autoria vem do token de B, nao de nada que o cliente mandou
+                .andExpect(jsonPath("$.autor.id").value(b.getId()));
+        mockMvc.perform(get(rota + "/comentarios").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].texto").value("Parabéns!"));
+        mockMvc.perform(delete(rota + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void apiPostInexistenteDevolve404EmTodaRotaComPostId() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        String rota = "/api/v1/posts/999999";
+
+        mockMvc.perform(put(rota + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete(rota + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get(rota + "/comentarios").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post(rota + "/comentarios").header(HttpHeaders.AUTHORIZATION, bearer(a))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"texto\": \"fantasma\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete(rota).header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/comentarios/999999").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void apiUsuarioBNaoApagaPostNemComentarioDaA() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+        Comentario comentarioDeA = comentarioRepository.saveAndFlush(
+                new Comentario(postDeA.getId(), a.getId(), "Comentário da A", LocalDateTime.now()));
+
+        mockMvc.perform(delete("/api/v1/posts/" + postDeA.getId()).header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/comentarios/" + comentarioDeA.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
+
+        assertThat(postRepository.existsById(postDeA.getId())).isTrue();
+        assertThat(comentarioRepository.existsById(comentarioDeA.getId())).isTrue();
+    }
+
+    /** Acesso cruzado PERMITIDO pela API tambem: dono do post modera. */
+    @Test
+    void apiAutorDoPostApagaComentarioDeOutroUsuarioDeProposito() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+        Comentario comentarioDeB = comentarioRepository.saveAndFlush(
+                new Comentario(postDeA.getId(), b.getId(), "Comentário do B", LocalDateTime.now()));
+
+        mockMvc.perform(delete("/api/v1/comentarios/" + comentarioDeB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNoContent());
+
+        assertThat(comentarioRepository.existsById(comentarioDeB.getId())).isFalse();
     }
 }

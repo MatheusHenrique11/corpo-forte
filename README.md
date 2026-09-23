@@ -80,6 +80,37 @@ com a lista de campos inválidos quando é erro de validação.
 Mesma conta do login web: o mesmo Google cai na mesma conta pelos dois
 caminhos, inclusive a reivindicação por `APP_OWNER_EMAIL`.
 
+Tudo que as telas fazem também existe na API (Fase 11), sempre sobre a
+conta do access token:
+
+| Módulo | Rotas |
+|---|---|
+| Perfil | `GET`/`PUT /api/v1/perfil` (com TMB, TDEE, IMC e macros) |
+| Avaliação física | `GET`/`POST /api/v1/avaliacoes`, `GET /api/v1/avaliacoes/comparacao` |
+| Peso | `GET`/`POST /api/v1/pesos`, `GET /api/v1/pesos/tendencia` |
+| Equipamentos e catálogo | `GET`/`PUT /api/v1/equipamentos`, `GET /api/v1/exercicios` |
+| Treino do dia | `GET /api/v1/treino-do-dia`, `PUT`/`DELETE /api/v1/treino-do-dia/itens/{id}/conclusao` |
+| Feed | `GET /api/v1/feed/descobrir`, `POST /api/v1/posts`, `DELETE /api/v1/posts/{id}`, `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
+
+Convenções:
+
+- **Toda lista** vem como `{"itens": [...], "proximoCursor": "..."}`. Pra
+  próxima página, repetir a chamada com `?cursor=<proximoCursor>`;
+  `proximoCursor` nulo quer dizer que acabou. O cursor marca a posição do
+  último item (não um número de página), então post novo chegando entre
+  uma página e outra não faz nada repetir nem sumir.
+- **Marcar e desmarcar são idempotentes**: `PUT` marca (curtida, item
+  concluído), `DELETE` desmarca. Repetir a mesma requisição não desfaz
+  nada.
+- **Horários** saem em UTC (`2026-09-23T18:54:18.053176Z`); datas de
+  calendário (dia do peso, da avaliação) saem como `2026-09-23`.
+- **Pré-requisito faltando** responde `409` com um `type` estável pro
+  cliente decidir o que mostrar: `urn:corpo-forte:problema:avaliacao-pendente`
+  (treino sem avaliação), `...:avaliacoes-insuficientes` (comparação com
+  menos de duas) e `...:registro-de-peso-pendente` (tendência sem pesagem).
+- Dado corporal (peso, altura, idade, avaliação) só aparece nas rotas da
+  própria conta. No feed, o autor é só `{id, nome}`.
+
 Variáveis de ambiente (todas opcionais pra rodar local, nunca commitadas):
 
 | Variável | Para quê | Sem ela |
@@ -165,3 +196,9 @@ arquivo decide em qual dos dois ele entra.
     especificação OpenAPI e Swagger UI no perfil `dev`. O vínculo de login
     virou uma tabela própria (provedor + identificador), migrando as contas
     já vinculadas ao Google sem perder nenhuma. ✅
+11. **API das funcionalidades existentes** — perfil, avaliação física,
+    peso, equipamentos, catálogo, treino do dia e feed pela API, usando os
+    mesmos services das telas (regras que moravam em controller de tela,
+    como a sincronização do peso, desceram pro service). Listas paginadas
+    por cursor, `DELETE` de verdade pra apagar, curtir e concluir item
+    idempotentes. ✅

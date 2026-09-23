@@ -20,17 +20,11 @@ public class AvaliacaoFisicaController {
 
     private final UsuarioAtualService usuarioAtualService;
     private final AvaliacaoFisicaService avaliacaoFisicaService;
-    private final AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService;
-    private final AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService;
 
     public AvaliacaoFisicaController(UsuarioAtualService usuarioAtualService,
-                                      AvaliacaoFisicaService avaliacaoFisicaService,
-                                      AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService,
-                                      AvaliacaoFisicaComparacaoService avaliacaoFisicaComparacaoService) {
+                                      AvaliacaoFisicaService avaliacaoFisicaService) {
         this.usuarioAtualService = usuarioAtualService;
         this.avaliacaoFisicaService = avaliacaoFisicaService;
-        this.avaliacaoFisicaCalculoService = avaliacaoFisicaCalculoService;
-        this.avaliacaoFisicaComparacaoService = avaliacaoFisicaComparacaoService;
     }
 
     @GetMapping("/avaliacao")
@@ -40,15 +34,13 @@ public class AvaliacaoFisicaController {
         Optional<AvaliacaoFisica> avaliacao = historico.stream().findFirst();
 
         model.addAttribute("avaliacaoForm", avaliacao.map(this::paraFormulario).orElseGet(AvaliacaoFisicaForm::new));
-        avaliacao.ifPresent(a -> model.addAttribute("resultado", calcularResultado(a)));
+        avaliacao.ifPresent(a -> model.addAttribute("resultado", avaliacaoFisicaService.resultadoDe(a)));
         model.addAttribute("historico", historico);
 
-        // comparacao so existe a partir da segunda avaliacao
-        if (historico.size() >= 2) {
-            model.addAttribute("comparacao", avaliacaoFisicaComparacaoService.comparar(
-                    calcularResultado(historico.get(0)), calcularResultado(historico.get(1))));
-            model.addAttribute("dataAnterior", historico.get(1).getDataAvaliacao());
-        }
+        avaliacaoFisicaService.compararUltimas(usuario.getId()).ifPresent(comparacao -> {
+            model.addAttribute("comparacao", comparacao.itens());
+            model.addAttribute("dataAnterior", comparacao.dataAnterior());
+        });
 
         return "avaliacao";
     }
@@ -78,12 +70,5 @@ public class AvaliacaoFisicaController {
         form.setRepsEmpurrarHorizontal(avaliacao.getRepsEmpurrarHorizontal());
         form.setRepsPernasUnilateral(avaliacao.getRepsPernasUnilateral());
         return form;
-    }
-
-    private List<AvaliacaoFisicaItemResultado> calcularResultado(AvaliacaoFisica avaliacao) {
-        return avaliacaoFisicaCalculoService.calcular(
-                avaliacao.getRepsPuxarVertical(), avaliacao.getRepsEmpurrarVertical(),
-                avaliacao.getRepsPernasBilateral(), avaliacao.getRepsPuxarHorizontal(),
-                avaliacao.getRepsEmpurrarHorizontal(), avaliacao.getRepsPernasUnilateral());
     }
 }

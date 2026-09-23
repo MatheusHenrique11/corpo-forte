@@ -125,4 +125,46 @@ class PostServiceTest {
 
         verify(comentarioRepository, never()).save(any());
     }
+
+    /** API (PUT): cliente que repete a requisicao depois de falha de rede
+     * nao pode desfazer a curtida, como o toggle da tela faria. */
+    @Test
+    void curtirOQueJaEstaCurtidoNaoMudaNada() {
+        when(postRepository.existsById(1L)).thenReturn(true);
+        when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L))
+                .thenReturn(Optional.of(new Curtida(1L, 7L, LocalDateTime.now())));
+
+        service.curtir(1L, 7L);
+
+        verify(curtidaRepository, never()).delete(any());
+        verify(curtidaRepository, never()).save(any());
+    }
+
+    @Test
+    void curtirConcorrenteQueColideNaConstraintNaoVira500() {
+        when(postRepository.existsById(1L)).thenReturn(true);
+        when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.empty());
+        when(curtidaRepository.save(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+
+        assertThatCode(() -> service.curtir(1L, 7L)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void descurtirOQueNaoEstaCurtidoNaoEErro() {
+        when(postRepository.existsById(1L)).thenReturn(true);
+        when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.empty());
+
+        assertThatCode(() -> service.descurtir(1L, 7L)).doesNotThrowAnyException();
+
+        verify(curtidaRepository, never()).delete(any());
+    }
+
+    @Test
+    void curtirEDescurtirPostInexistenteDa404() {
+        when(postRepository.existsById(404L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.curtir(404L, 7L)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.descurtir(404L, 7L)).isInstanceOf(ResponseStatusException.class);
+    }
 }

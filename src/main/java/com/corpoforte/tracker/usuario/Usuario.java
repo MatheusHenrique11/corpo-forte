@@ -110,9 +110,15 @@ public class Usuario {
      * Usado pelo modulo de equipamentos/catalogo de exercicios (Fase 4):
      * substitui o conjunto inteiro, nao acumula - marcar a tela de novo com
      * menos itens precisa remover o que foi desmarcado.
+     *
+     * NENHUM e' descartado: e' o "equipamento" de exercicio de peso
+     * corporal, sempre compativel (ExercicioFiltroService), nao algo que se
+     * possui. A tela nunca oferecia essa opcao, mas a API aceita qualquer
+     * valor do enum - a regra mora aqui pra valer nas duas portas.
      */
     public void atualizarEquipamentos(Set<Equipamento> equipamentos) {
         this.equipamentosDisponiveis = new HashSet<>(equipamentos);
+        this.equipamentosDisponiveis.remove(Equipamento.NENHUM);
     }
 
     /**

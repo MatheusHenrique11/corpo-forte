@@ -60,7 +60,7 @@ class CurtidaRepositoryIT extends IntegrationTestBase {
         curtidaRepository.saveAndFlush(new Curtida(post.getId(), a.getId(), LocalDateTime.now()));
         curtidaRepository.saveAndFlush(new Curtida(post.getId(), b.getId(), LocalDateTime.now()));
 
-        List<CurtidaRepository.ContagemPorPost> contagem =
+        List<ContagemPorPost> contagem =
                 curtidaRepository.contarPorPost(List.of(post.getId()));
 
         assertThat(contagem).hasSize(1);

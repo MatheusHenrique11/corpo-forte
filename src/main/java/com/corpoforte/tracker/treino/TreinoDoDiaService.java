@@ -1,8 +1,8 @@
 package com.corpoforte.tracker.treino;
 
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
-import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaCalculoService;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaItemResultado;
+import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.exercicio.Exercicio;
 import com.corpoforte.tracker.exercicio.ExercicioFiltroService;
 import com.corpoforte.tracker.exercicio.ExercicioService;
@@ -14,9 +14,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -33,22 +35,33 @@ public class TreinoDoDiaService {
     private final TreinoItemRepository treinoItemRepository;
     private final ExercicioService exercicioService;
     private final ExercicioFiltroService exercicioFiltroService;
-    private final AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService;
+    private final AvaliacaoFisicaService avaliacaoFisicaService;
     private final TreinoDoDiaGeradorService treinoDoDiaGeradorService;
     private final PeriodizacaoService periodizacaoService;
 
     public TreinoDoDiaService(TreinoDoDiaRepository treinoDoDiaRepository, TreinoItemRepository treinoItemRepository,
                                ExercicioService exercicioService, ExercicioFiltroService exercicioFiltroService,
-                               AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService,
+                               AvaliacaoFisicaService avaliacaoFisicaService,
                                TreinoDoDiaGeradorService treinoDoDiaGeradorService,
                                PeriodizacaoService periodizacaoService) {
         this.treinoDoDiaRepository = treinoDoDiaRepository;
         this.treinoItemRepository = treinoItemRepository;
         this.exercicioService = exercicioService;
         this.exercicioFiltroService = exercicioFiltroService;
-        this.avaliacaoFisicaCalculoService = avaliacaoFisicaCalculoService;
+        this.avaliacaoFisicaService = avaliacaoFisicaService;
         this.treinoDoDiaGeradorService = treinoDoDiaGeradorService;
         this.periodizacaoService = periodizacaoService;
+    }
+
+    /**
+     * Treino de hoje pra quem ja fez avaliacao fisica; vazio pra quem nao
+     * fez (sem repeticoes maximas nao ha volume pra calcular). A regra
+     * morava no controller da tela e desceu pra ca pra API seguir a mesma.
+     * O ciclo ancora na avaliacao mais recente (Fases 8 e 9).
+     */
+    public Optional<TreinoDoDiaView> obterOuGerarDoDia(Usuario usuario) {
+        return avaliacaoFisicaService.obterMaisRecenteDoUsuario(usuario.getId())
+                .map(avaliacao -> obterOuGerarDoDia(usuario, avaliacao));
     }
 
     public TreinoDoDiaView obterOuGerarDoDia(Usuario usuario, AvaliacaoFisica avaliacaoFisica) {
@@ -96,6 +109,24 @@ public class TreinoDoDiaService {
      * existe.
      */
     public void alternarConclusao(Long usuarioId, Long itemId) {
+        TreinoItem item = itemDoUsuario(usuarioId, itemId);
+        item.alternarConclusao();
+        treinoItemRepository.save(item);
+    }
+
+    /**
+     * Versao idempotente pra API: marcar duas vezes continua marcado. Com o
+     * toggle da tela, um cliente que repete a requisicao depois de
+     * uma falha de rede desfaria o que o usuario acabou de marcar. Mesma
+     * checagem de dono do alternarConclusao.
+     */
+    public void definirConclusao(Long usuarioId, Long itemId, boolean concluido) {
+        TreinoItem item = itemDoUsuario(usuarioId, itemId);
+        item.definirConclusao(concluido);
+        treinoItemRepository.save(item);
+    }
+
+    private TreinoItem itemDoUsuario(Long usuarioId, Long itemId) {
         TreinoItem item = treinoItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
@@ -105,17 +136,12 @@ public class TreinoDoDiaService {
         if (!treino.getUsuarioId().equals(usuarioId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-
-        item.alternarConclusao();
-        treinoItemRepository.save(item);
+        return item;
     }
 
     private TreinoDoDia gerarNovo(Usuario usuario, AvaliacaoFisica avaliacaoFisica, LocalDate hoje,
                                    int semanasProgredidas) {
-        List<AvaliacaoFisicaItemResultado> volumes = avaliacaoFisicaCalculoService.calcular(
-                avaliacaoFisica.getRepsPuxarVertical(), avaliacaoFisica.getRepsEmpurrarVertical(),
-                avaliacaoFisica.getRepsPernasBilateral(), avaliacaoFisica.getRepsPuxarHorizontal(),
-                avaliacaoFisica.getRepsEmpurrarHorizontal(), avaliacaoFisica.getRepsPernasUnilateral());
+        List<AvaliacaoFisicaItemResultado> volumes = avaliacaoFisicaService.resultadoDe(avaliacaoFisica);
 
         List<Exercicio> catalogo = exercicioService.listarTodos();
         Map<MovimentoPadrao, List<Exercicio>> candidatosPorMovimento = new HashMap<>();
@@ -146,10 +172,10 @@ public class TreinoDoDiaService {
         List<TreinoItemView> views = itens.stream()
                 .map(item -> {
                     Exercicio exercicio = catalogoPorId.get(item.getExercicioId());
-                    return new TreinoItemView(item.getId(), exercicio.getMovimento(), exercicio.getNome(),
-                            item.getSeries(), item.getRepeticoes(), item.isConcluido());
+                    return new TreinoItemView(item.getId(), exercicio.getMovimento(), exercicio.getId(),
+                            exercicio.getNome(), item.getSeries(), item.getRepeticoes(), item.isConcluido());
                 })
-                .sorted(java.util.Comparator.comparingInt(view -> view.movimento().ordinal()))
+                .sorted(Comparator.comparingInt(view -> view.movimento().ordinal()))
                 .toList();
 
         Set<MovimentoPadrao> presentes = views.stream().map(TreinoItemView::movimento).collect(Collectors.toSet());
@@ -157,6 +183,6 @@ public class TreinoDoDiaService {
                 .filter(movimento -> !presentes.contains(movimento))
                 .toList();
 
-        return new TreinoDoDiaView(views, semOpcao, ciclo);
+        return new TreinoDoDiaView(treino.getData(), views, semOpcao, ciclo);
     }
 }
