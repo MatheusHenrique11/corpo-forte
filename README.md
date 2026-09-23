@@ -98,7 +98,10 @@ arquivo decide em qual dos dois ele entra.
      post de todo mundo, de propósito — é a primeira entidade
      intencionalmente compartilhada do sistema, diferente de tudo o resto,
      que é isolado por usuário desde a Fase 6). ✅
-   - 7b. Comentários + curtidas — pendente.
+   - 7b. **Comentários + curtidas** — comentário de texto e curtida
+     (toggle) em qualquer post do feed, inclusive o dos outros: são os
+     primeiros endpoints do sistema em que usar o ID de um recurso alheio
+     é a função, não uma falha de isolamento. ✅
 8. **Periodização** — o volume do treino sobe a cada semana em que houve
    treino concluído (usa o incremento que a Fase 2 já calculava e ninguém
    consumia), em ciclos de 8 semanas com aviso pra refazer a avaliação

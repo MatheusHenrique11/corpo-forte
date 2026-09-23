@@ -4,6 +4,10 @@ import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
+import com.corpoforte.tracker.feed.Post;
+import com.corpoforte.tracker.feed.PostRepository;
+import com.corpoforte.tracker.feed.PostService;
+import com.corpoforte.tracker.feed.PostView;
 import com.corpoforte.tracker.treino.TreinoDoDiaService;
 import com.corpoforte.tracker.treino.TreinoDoDiaView;
 import com.corpoforte.tracker.usuario.Equipamento;
@@ -16,6 +20,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,22 +71,43 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   POST /equipamentos                                 sem ID (Set<Equipamento>, nao ID de entidade)
  *   GET  /exercicios                                   sem ID (@RequestParam so' de enum de filtro; catalogo compartilhado, nao e' dado por usuario)
  *   GET  /treino-do-dia                                sem ID
- *   POST /treino-do-dia/itens/{itemId}/concluir        RECEBE ID (@PathVariable)  <- unico endpoint desta lista
+ *   POST /treino-do-dia/itens/{itemId}/concluir        RECEBE ID (@PathVariable)
+ *   GET  /feed                                         sem ID (Fase 7a)
+ *   POST /feed                                         sem ID (PostForm so' tem texto)
+ *   POST /feed/posts/{postId}/comentarios              RECEBE ID (@PathVariable, Fase 7b)
+ *   POST /feed/posts/{postId}/curtir                   RECEBE ID (@PathVariable, Fase 7b)
  *
- * Conclusao: so 1 dos 12 endpoints aceita um ID de recurso vindo do
- * cliente, confirmado nos quatro vetores (não só @PathVariable). Os outros
- * 11 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
+ * Conclusao: 3 dos 16 endpoints aceitam um ID de recurso vindo do cliente,
+ * confirmado nos quatro vetores (não só @PathVariable). Os outros 13
+ * operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual(principal)) ou sobre enums de
- * filtro sem significado de ID, sem nenhum ID de entidade de outro usuario
- * exposto pro cliente manipular - entao nao tem outro endpoint pra
- * escrever teste de acesso cruzado.
+ * filtro sem significado de ID.
+ *
+ * ATENCAO - os 2 endpoints da Fase 7b mudam a NATUREZA desta auditoria.
+ * Ate a Fase 6, "receber ID de recurso de outro usuario" era sempre um
+ * bug: o teste de /treino-do-dia/itens/{id} exige 404 justamente porque
+ * ninguem tem nada a fazer com o treino alheio. Comentar e curtir sao o
+ * primeiro caso em que usar o ID de um recurso de OUTRA pessoa e' a
+ * funcao, nao a falha - post e' a entidade intencionalmente compartilhada
+ * da Fase 7a (ver Post.java). Entao o que precisa ser garantido aqui e'
+ * outro:
+ *
+ *   1. post inexistente -> 404, nao 500 nem stacktrace vazando;
+ *   2. autoria vem do login, nunca do cliente - nao existe campo
+ *      "usuarioId" em ComentarioForm nem @RequestParam de autor; quem
+ *      assina o comentario/curtida e' sempre o Usuario resolvido pelo
+ *      principal.
+ *
+ * Nao existe teste de "B nao pode curtir post de A" porque B PODE - e o
+ * teste abaixo trava esse comportamento de proposito, pra ninguem
+ * "corrigir" isso depois achando que e' um vazamento de isolamento.
  *
  * Quando uma fase futura adicionar um endpoint novo que receba ID por
- * qualquer um dos quatro vetores acima (ex.: editar um registro de peso
- * especifico por ID, remover um item do catalogo, um campo hidden
- * "itemId" num form), atualizar esta lista e acrescentar um teste de
- * acesso cruzado aqui, no mesmo padrao do que ja existe pra
- * /treino-do-dia/itens/{id}.
+ * qualquer um dos quatro vetores acima (ex.: apagar o proprio post - Fase
+ * 7c -, editar um registro de peso especifico), atualizar esta lista e
+ * acrescentar o teste correspondente: acesso cruzado proibido no padrao de
+ * /treino-do-dia/itens/{id}, ou acesso cruzado permitido no padrao do
+ * feed, conforme o caso.
  */
 @AutoConfigureMockMvc
 @Transactional
@@ -98,6 +124,12 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Autowired
     private TreinoDoDiaService treinoDoDiaService;
+
+    @Autowired
+    private PostRepository postRepository;
+
+    @Autowired
+    private PostService postService;
 
     private final OidcUser usuarioA = OidcTestUsers.principal("sub-endpoint-id-a", "Usuaria A", "a@exemplo.com");
     private final OidcUser usuarioB = OidcTestUsers.principal("sub-endpoint-id-b", "Usuario B", "b@exemplo.com");
@@ -141,6 +173,49 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
         mockMvc.perform(post("/treino-do-dia/itens/999999/concluir")
                         .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * O oposto do teste de treino acima, e de proposito: usar o ID do post
+     * de OUTRO usuario e' exatamente pra isso que esses dois endpoints
+     * existem. Se um dia alguem adicionar checagem de dono aqui "por
+     * seguranca", este teste quebra e explica que era intencional.
+     */
+    @Test
+    void curtirEComentarPostDeOutroUsuarioEhPermitidoDeProposito() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(
+                new Post(a.getId(), "Fechei o ciclo de 8 semanas", LocalDateTime.now()));
+
+        mockMvc.perform(post("/feed/posts/" + postDeA.getId() + "/curtir")
+                        .with(oidcLogin().oidcUser(usuarioB)).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(post("/feed/posts/" + postDeA.getId() + "/comentarios")
+                        .with(oidcLogin().oidcUser(usuarioB)).with(csrf())
+                        .param("texto", "Parabéns!"))
+                .andExpect(status().is3xxRedirection());
+
+        PostView post = postService.listarFeed(a.getId()).get(0);
+        assertThat(post.curtidas()).isEqualTo(1);
+        // autoria vem do login de B, nao de nada que o cliente mandou
+        assertThat(post.comentarios()).singleElement()
+                .satisfies(comentario -> assertThat(comentario.autorNome()).isEqualTo(b.getNome()));
+    }
+
+    @Test
+    void curtirEComentarPostComIdInexistenteDevolve404() throws Exception {
+        usuarioAtualService.obterUsuarioAtual(usuarioA);
+
+        mockMvc.perform(post("/feed/posts/999999/curtir")
+                        .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/feed/posts/999999/comentarios")
+                        .with(oidcLogin().oidcUser(usuarioA)).with(csrf())
+                        .param("texto", "comentário em post fantasma"))
                 .andExpect(status().isNotFound());
     }
 }

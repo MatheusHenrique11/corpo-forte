@@ -34,12 +34,26 @@
     .post .quando{color:var(--muted); font-size:.72rem; margin-left:8px;}
     .post .texto{margin:4px 0 0; white-space:pre-wrap;}
     .vazio{color:var(--muted); font-size:.9rem;}
+    .acoes{display:flex; align-items:center; gap:12px; margin-top:8px;}
+    .curtir{background:none; border:1px solid var(--line); color:var(--muted); padding:4px 11px;
+            border-radius:999px; font-size:.8rem; font-weight:600; margin:0; display:inline-flex;
+            gap:6px; align-items:center;}
+    .curtir.curtido{color:#b3261e; border-color:#f0c9c4; background:#fdf3f2;}
+    .contagem{color:var(--muted); font-size:.75rem;}
+    .comentarios{margin:10px 0 0; padding-left:12px; border-left:2px solid var(--line);}
+    .comentario{padding:5px 0;}
+    .comentario .autor{font-size:.82rem;}
+    .comentario .texto{font-size:.9rem;}
+    .form-comentario{display:flex; gap:8px; margin-top:10px;}
+    .form-comentario input{flex:1; padding:7px 10px; border-radius:8px; border:1px solid var(--line);
+                           background:var(--bg); color:var(--ink); font-size:.88rem; font-family:inherit;}
+    .form-comentario button{margin-top:0; padding:7px 14px; font-size:.82rem;}
   </style>
 </head>
 <body>
 
 <h1>🥋 Corpo Forte Tracker</h1>
-<p class="sub">Fase 7a — feed social.</p>
+<p class="sub">Fase 7b — feed social com comentários e curtidas.</p>
 <nav>
   <a th:href="@{/perfil}">Perfil</a>
   <a th:href="@{/avaliacao}">Avaliação física</a>
@@ -70,6 +84,34 @@
       <span class="autor" th:text="${post.autorNome()}"></span>
       <span class="quando" th:text="${#temporals.format(post.criadoEm(), 'dd/MM/yyyy HH:mm')}"></span>
       <p class="texto" th:text="${post.texto()}"></p>
+
+      <div class="acoes">
+        <form th:action="@{/feed/posts/{id}/curtir(id=${post.id()})}" method="post">
+          <button type="submit" class="curtir" th:classappend="${post.curtidoPorMim()} ? 'curtido' : ''"
+                  th:title="${post.curtidoPorMim()} ? 'Descurtir' : 'Curtir'">
+            <span th:text="${post.curtidoPorMim()} ? '&#9829;' : '&#9825;'"></span>
+            <span th:text="${post.curtidas()}"></span>
+          </button>
+        </form>
+        <span class="contagem"
+              th:text="${#lists.size(post.comentarios())} + (${#lists.size(post.comentarios())} == 1 ? ' comentário' : ' comentários')"></span>
+      </div>
+
+      <div class="comentarios" th:if="${not #lists.isEmpty(post.comentarios())}">
+        <div class="comentario" th:each="comentario : ${post.comentarios()}">
+          <span class="autor" th:text="${comentario.autorNome()}"></span>
+          <span class="quando" th:text="${#temporals.format(comentario.criadoEm(), 'dd/MM HH:mm')}"></span>
+          <p class="texto" th:text="${comentario.texto()}"></p>
+        </div>
+      </div>
+
+      <form class="form-comentario" th:action="@{/feed/posts/{id}/comentarios(id=${post.id()})}" method="post">
+        <input type="text" name="texto" placeholder="Escreva um comentário...">
+        <button type="submit">Comentar</button>
+      </form>
+      <p class="erro" style="margin:6px 0 0;"
+         th:if="${erroComentarioPostId != null and erroComentarioPostId == post.id()}"
+         th:text="${erroComentario}"></p>
     </div>
   </div>
   <p class="vazio" th:if="${#lists.isEmpty(posts)}">Ninguém postou nada ainda. Seja o primeiro!</p>
