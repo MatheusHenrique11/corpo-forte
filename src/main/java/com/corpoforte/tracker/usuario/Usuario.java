@@ -17,9 +17,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Conta do usuario. email/googleSub nasceram nullable na Fase 1 exatamente
- * pra isso: a Fase 6 (login com Google) preenche essas colunas em contas ja
- * existentes sem precisar de migration destrutiva nenhuma.
+ * Conta do usuario. email nasceu nullable na Fase 1 exatamente pra isso: a
+ * Fase 6 (login com Google) preenche a coluna em contas ja existentes sem
+ * precisar de migration destrutiva nenhuma. A identidade de login em si
+ * (antes a coluna google_sub) mora em IdentidadeExterna desde a Fase 10.
  */
 @Entity
 @Table(name = "usuario")
@@ -34,9 +35,6 @@ public class Usuario {
 
     @Column(unique = true)
     private String email;
-
-    @Column(name = "google_sub", unique = true)
-    private String googleSub;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -118,14 +116,14 @@ public class Usuario {
     }
 
     /**
-     * Usado uma unica vez pelo login com Google (Fase 6): ou na conta
-     * "reivindicada" (usuario local existente que ainda nao tinha
-     * googleSub) ou na criacao de uma conta nova. Nao e' chamado de novo em
-     * logins seguintes - o nome que o usuario editar depois em /perfil nao
-     * e' sobrescrito a cada login.
+     * Usado uma unica vez, no primeiro login (Fase 6): ou na conta
+     * "reivindicada" (usuario local existente que ainda nao tinha login) ou
+     * na criacao de uma conta nova. Nao e' chamado de novo em logins
+     * seguintes - o nome que o usuario editar depois em /perfil nao e'
+     * sobrescrito a cada login. O vinculo com o provedor em si e' uma
+     * IdentidadeExterna, criada junto pelo UsuarioAtualService.
      */
-    public void vincularConta(String googleSub, String email) {
-        this.googleSub = googleSub;
+    public void vincularEmail(String email) {
         this.email = email;
     }
 
@@ -139,10 +137,6 @@ public class Usuario {
 
     public String getEmail() {
         return email;
-    }
-
-    public String getGoogleSub() {
-        return googleSub;
     }
 
     public Role getRole() {

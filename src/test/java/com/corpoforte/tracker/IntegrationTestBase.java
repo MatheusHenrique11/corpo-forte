@@ -1,7 +1,10 @@
 package com.corpoforte.tracker;
 
+import com.corpoforte.tracker.auth.GoogleDeTesteConfig;
+import com.corpoforte.tracker.auth.GoogleIdTokenDeTeste;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -26,15 +29,25 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * ver Fase 4) desaparecia silenciosamente nos testes. @TestPropertySource
  * so adiciona/sobrescreve as propriedades listadas, mantendo o resto do
  * application.yml principal em vigor.
+ *
+ * GoogleDeTesteConfig (Fase 10) entra aqui, e nao em cada teste de API,
+ * pelo mesmo motivo do container compartilhado: configuracao diferente
+ * por classe faria o Spring subir um contexto novo pra cada uma.
  */
 @SpringBootTest
+@Import(GoogleDeTesteConfig.class)
 @TestPropertySource(properties = {
         "spring.security.oauth2.client.registration.google.client-id=teste-client-id",
         "spring.security.oauth2.client.registration.google.client-secret=teste-client-secret",
         "spring.security.oauth2.client.registration.google.scope=openid,profile,email",
-        "app.owner-email=" + IntegrationTestBase.OWNER_EMAIL
+        "app.owner-email=" + IntegrationTestBase.OWNER_EMAIL,
+        "app.auth.google.client-ids=" + GoogleIdTokenDeTeste.CLIENT_ID_WEB + "," + GoogleIdTokenDeTeste.CLIENT_ID_SEGUNDO_CLIENTE,
+        "app.cors.origins=" + IntegrationTestBase.ORIGEM_WEB_PERMITIDA
 })
 public abstract class IntegrationTestBase {
+
+    /** Unica origem liberada no CORS da API nos testes (Fase 10). */
+    public static final String ORIGEM_WEB_PERMITIDA = "http://localhost:5173";
 
     /** E-mail configurado como app.owner-email nos testes (Fase 6) - o
      * unico que pode reivindicar uma conta local orfa. */

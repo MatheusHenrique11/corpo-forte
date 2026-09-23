@@ -1,0 +1,11 @@
+# Perfil de desenvolvimento local: mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#
+# Liga a especificacao OpenAPI (/v3/api-docs) e o Swagger UI
+# (/swagger-ui.html). Pra chamar a API pelo Swagger: logar na tela web,
+# abrir /dev/token-api (so' existe neste perfil), copiar o accessToken e
+# colar no botao "Authorize".
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

@@ -34,9 +34,37 @@ spring:
 server:
   port: 8090
 
+# Especificacao OpenAPI e Swagger UI desligadas por padrao; o perfil dev
+# (application-dev.yml) liga. So' a API entra na especificacao - as telas
+# Thymeleaf nao fazem parte do contrato com os clientes.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+  paths-to-match: /api/**
+
 app:
   # E-mail do dono da conta local existente antes do login chegar (Fase 6).
   # So esse e-mail, com email_verified=true no token do Google, pode
   # reivindicar a conta orfa no primeiro login - vazio (padrao) desativa a
   # reivindicacao inteiramente, nunca reivindica "o primeiro que logar".
   owner-email: ${APP_OWNER_EMAIL:}
+
+  # API REST (Fase 10). Mesma regra das credenciais do Google: valor real
+  # so' por variavel de ambiente, nunca commitado.
+  auth:
+    # Segredo do access token (HS256), com pelo menos 32 bytes. Vazio: um
+    # segredo aleatorio por boot (tokens morrem a cada reinicio) - nunca um
+    # valor padrao escrito aqui, que o repositorio e' publico.
+    jwt-secret: ${APP_JWT_SECRET:}
+    google:
+      # Client IDs OAuth do Google (um por aplicativo cliente), separados por
+      # virgula, para os quais um ID token do Google e' aceito no login pela
+      # API. Vazio: login pela API desligado.
+      client-ids: ${APP_GOOGLE_CLIENT_IDS:}
+      jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+  # Origens (aplicacoes web) que podem chamar a API pelo navegador,
+  # separadas por virgula. Vazio: nenhuma origem externa.
+  cors:
+    origins: ${APP_CORS_ORIGINS:}

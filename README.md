@@ -6,8 +6,9 @@ já concluídas estão em "Fases" abaixo.
 
 ## Stack
 
-Java 21 · Spring Boot 3.5 · Spring Data JPA · Bean Validation · PostgreSQL ·
-Flyway · Thymeleaf · Maven.
+Java 21 · Spring Boot 3.5 · Spring Data JPA · Spring Security (login OAuth2 +
+JWT) · Bean Validation · PostgreSQL · Flyway · Thymeleaf · springdoc-openapi ·
+Maven.
 
 ## Como rodar
 
@@ -56,6 +57,51 @@ cadastrados antes do login existir. Qualquer outro e-mail sempre cria uma
 conta nova, mesmo que a conta local ainda esteja sem dono — sem
 `APP_OWNER_EMAIL` configurado, a reivindicação fica desativada e ninguém
 herda a conta local.
+
+## API REST
+
+A partir da Fase 10 o back-end expõe uma API JSON em `/api/v1`, autenticada
+por token (sem sessão e sem cookie). O login com Google acontece no cliente,
+com o Google Sign-In; o cliente troca o ID token recebido do Google por
+tokens do Corpo Forte:
+
+| Rota | O que faz |
+|---|---|
+| `POST /api/v1/auth/google` | `{"idToken": "..."}` → access token (JWT, 15 min) + refresh token (30 dias) |
+| `POST /api/v1/auth/refresh` | `{"refreshToken": "..."}` → par novo; o refresh usado deixa de valer |
+| `POST /api/v1/auth/logout` | `{"refreshToken": "..."}` → encerra aquela sessão |
+| `GET /api/v1/me` | conta dona do access token (`Authorization: Bearer ...`) |
+
+O refresh token é rotativo: reapresentar um que já foi trocado é tratado
+como cópia roubada e encerra todas as sessões da conta. Todo erro da API
+sai no formato [ProblemDetail (RFC 7807)](https://www.rfc-editor.org/rfc/rfc7807),
+com a lista de campos inválidos quando é erro de validação.
+
+Mesma conta do login web: o mesmo Google cai na mesma conta pelos dois
+caminhos, inclusive a reivindicação por `APP_OWNER_EMAIL`.
+
+Variáveis de ambiente (todas opcionais pra rodar local, nunca commitadas):
+
+| Variável | Para quê | Sem ela |
+|---|---|---|
+| `APP_JWT_SECRET` | segredo do access token, com 32+ bytes | segredo aleatório a cada boot (tokens morrem ao reiniciar) |
+| `APP_GOOGLE_CLIENT_IDS` | client IDs OAuth do Google aceitos no login pela API, separados por vírgula | login pela API desligado |
+| `APP_CORS_ORIGINS` | origens web que podem chamar a API pelo navegador, separadas por vírgula | nenhuma origem externa |
+
+### Testar a API localmente (perfil `dev`)
+
+```
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+1. Logar pela tela web normalmente (http://localhost:8090).
+2. Abrir http://localhost:8090/dev/token-api: devolve um par de tokens pra
+   conta logada, sem precisar de um cliente com Google Sign-In.
+3. Abrir o Swagger UI em http://localhost:8090/swagger-ui.html, clicar em
+   **Authorize** e colar o `accessToken`.
+
+A especificação OpenAPI fica em http://localhost:8090/v3/api-docs. O Swagger
+UI, a especificação e o `/dev/token-api` só existem no perfil `dev`.
 
 ## Testes
 
@@ -113,3 +159,9 @@ arquivo decide em qual dos dois ele entra.
    a anterior: uma medição por dia por usuário, com comparação movimento a
    movimento entre a avaliação atual e a anterior ("10 → 15, +5") e
    histórico completo na tela `/avaliacao`. ✅
+10. **API REST e autenticação por token** — API JSON em `/api/v1` com login
+    Google feito no cliente e trocado por tokens próprios (access token de
+    15 minutos + refresh token rotativo e revogável), erros em ProblemDetail,
+    especificação OpenAPI e Swagger UI no perfil `dev`. O vínculo de login
+    virou uma tabela própria (provedor + identificador), migrando as contas
+    já vinculadas ao Google sem perder nenhuma. ✅

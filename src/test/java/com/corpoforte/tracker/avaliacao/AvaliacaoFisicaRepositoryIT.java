@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * "Uma avaliacao por dia por usuario" tem que ser constraint de banco, nao
  * so o upsert do service - mesmo padrao ja usado pra registro_peso (Fase 3),
- * treino_do_dia (Fase 5) e usuario.google_sub (Fase 6). Insere direto pelo
+ * treino_do_dia (Fase 5) e o login Google (Fase 6). Insere direto pelo
  * repository, contornando AvaliacaoFisicaService.salvar de proposito.
  */
 @Transactional

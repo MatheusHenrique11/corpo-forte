@@ -56,8 +56,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *                       RegistroPesoForm): nenhum campo termina em "Id" -
  *                       só valores (nome, altura, reps, data, peso etc.),
  *                       zero hidden input de ID.
- *   @RequestBody     - zero ocorrências no projeto inteiro (é tudo
- *                       Thymeleaf server-side, nenhuma API JSON).
+ *   @RequestBody     - zero ocorrências ate a Fase 9 (era tudo
+ *                       Thymeleaf server-side). Desde a Fase 10, so' os
+ *                       corpos de /api/v1/auth: LoginGoogleRequisicao
+ *                       (idToken) e RefreshTokenRequisicao (refreshToken).
+ *                       Nenhum e' ID de recurso: sao credenciais, e quem
+ *                       as tem ja e' o dono (o refresh token e' um segredo
+ *                       aleatorio de 256 bits, nao da pra adivinhar nem
+ *                       incrementar).
  *
  * Levantamento completo, os endpoints do app (grep por
  * @GetMapping/@PostMapping em todos os controllers):
@@ -80,12 +86,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   POST /feed/posts/{postId}/curtir                   RECEBE ID (@PathVariable, Fase 7b)
  *   POST /feed/posts/{postId}/apagar                   RECEBE ID (@PathVariable, Fase 7c)
  *   POST /feed/comentarios/{comentarioId}/apagar       RECEBE ID (@PathVariable, Fase 7c)
+ *   POST /api/v1/auth/google                           sem ID (Fase 10; corpo com credencial, ver @RequestBody)
+ *   POST /api/v1/auth/refresh                          sem ID (Fase 10; idem)
+ *   POST /api/v1/auth/logout                           sem ID (Fase 10; idem)
+ *   GET  /api/v1/me                                    sem ID (Fase 10; conta dona do access token)
+ *   GET  /dev/token-api                                sem ID (Fase 10; so' no perfil dev, usuario da sessao)
  *
- * Conclusao: 5 dos 18 endpoints aceitam um ID de recurso vindo do cliente,
- * confirmado nos quatro vetores (não só @PathVariable). Os outros 13
+ * Conclusao: 5 dos 23 endpoints aceitam um ID de recurso vindo do cliente,
+ * confirmado nos quatro vetores (não só @PathVariable). Os outros 18
  * operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
- * UsuarioAtualService.obterUsuarioAtual(principal)) ou sobre enums de
- * filtro sem significado de ID.
+ * UsuarioAtualService.obterUsuarioAtual, pela sessao ou pelo access
+ * token) ou sobre enums de filtro sem significado de ID.
  *
  * ATENCAO - os 2 endpoints da Fase 7b mudam a NATUREZA desta auditoria.
  * Ate a Fase 6, "receber ID de recurso de outro usuario" era sempre um

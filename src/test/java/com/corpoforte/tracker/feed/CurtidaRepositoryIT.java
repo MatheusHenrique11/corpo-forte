@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * "Uma curtida por usuario por post" tem que ser constraint de banco, nao
  * so' o find-antes-de-salvar do PostService - mesmo padrao ja usado pra
- * registro_peso (Fase 3), treino_do_dia (Fase 5), usuario.google_sub
+ * registro_peso (Fase 3), treino_do_dia (Fase 5), login Google
  * (Fase 6) e avaliacao_fisica (Fase 9). Insere direto pelo repository,
  * contornando alternarCurtida de proposito: e' o que prova que duas
  * requisicoes concorrentes nao conseguem gravar duas curtidas.

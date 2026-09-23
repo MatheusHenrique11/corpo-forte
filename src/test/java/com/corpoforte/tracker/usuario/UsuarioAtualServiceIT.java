@@ -8,15 +8,20 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Cobre a migracao do usuario local pra multiusuario (Fase 6): o primeiro
  * login do e-mail configurado em app.owner-email (com email_verified=true)
- * reivindica a conta local existente (se sobrar exatamente uma sem
- * googleSub) em vez de descartar historico ja acumulado; logins seguintes
+ * reivindica a conta local existente (se sobrar exatamente uma sem login
+ * nenhum) em vez de descartar historico ja acumulado; logins seguintes
  * do mesmo Google não duplicam; um segundo Google distinto ganha conta
  * propria; e-mail diferente do dono ou nao verificado nunca reivindica,
  * mesmo com a conta orfa disponivel - cria conta nova em vez disso.
+ *
+ * Desde a Fase 10 o vinculo com o Google e' uma IdentidadeExterna (antes a
+ * coluna usuario.google_sub), e a sessao web e a API resolvem o usuario
+ * pelo mesmo caminho (obterOuCriar).
  */
 @Transactional
 class UsuarioAtualServiceIT extends IntegrationTestBase {
@@ -26,6 +31,9 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private IdentidadeExternaRepository identidadeExternaRepository;
 
     @Test
     void primeiroLoginDoDonoConfiguradoReivindicaAUnicaContaLocalOrfaExistente() {
@@ -39,7 +47,9 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
         // peso/nivel continuam os da conta local), nao criou uma segunda
         assertThat(usuario.getId()).isEqualTo(contaLocal.getId());
         assertThat(usuario.getPesoKg()).isEqualTo(82.0);
-        assertThat(usuario.getGoogleSub()).isEqualTo("sub-reivindicacao");
+        assertThat(identidadeExternaRepository.findByUsuarioId(usuario.getId()))
+                .extracting(IdentidadeExterna::getProvedor, IdentidadeExterna::getSub)
+                .containsExactly(tuple(Provedor.GOOGLE, "sub-reivindicacao"));
         assertThat(usuario.getEmail()).isEqualTo(OWNER_EMAIL);
         assertThat(usuarioRepository.findAll()).hasSize(1);
     }
@@ -55,7 +65,7 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
         // conta nova, criada do zero - a conta local com historico continua
         // orfa, intacta, esperando o dono de verdade logar
         assertThat(usuario.getId()).isNotEqualTo(contaLocal.getId());
-        assertThat(usuarioRepository.findByGoogleSubIsNull()).containsExactly(contaLocal);
+        assertThat(usuarioRepository.findSemIdentidadeExterna()).containsExactly(contaLocal);
         assertThat(usuarioRepository.findAll()).hasSize(2);
     }
 
@@ -72,7 +82,7 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
     }
 
     @Test
-    void logarDeNovoComOMesmoGoogleSubDevolveOMesmoUsuarioSemDuplicar() {
+    void logarDeNovoComOMesmoLoginGoogleDevolveOMesmoUsuarioSemDuplicar() {
         OidcUser principal = OidcTestUsers.principal("sub-repetido", "Fulana", "fulana@exemplo.com");
 
         Usuario primeiroLogin = usuarioAtualService.obterUsuarioAtual(principal);
@@ -92,5 +102,18 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
 
         assertThat(a.getId()).isNotEqualTo(b.getId());
         assertThat(usuarioRepository.findAll()).hasSize(2);
+    }
+
+    @Test
+    void mesmoLoginGooglePelaSessaoWebEPelaApiResolveAMesmaConta() {
+        OidcUser sessaoWeb = OidcTestUsers.principal("sub-duas-portas", "Fulana", "fulana@exemplo.com");
+        // o que o VerificadorIdTokenGoogle monta a partir do ID token da API
+        DadosLogin loginPelaApi = new DadosLogin(Provedor.GOOGLE, "sub-duas-portas", "fulana@exemplo.com", true, "Fulana");
+
+        Usuario pelaWeb = usuarioAtualService.obterUsuarioAtual(sessaoWeb);
+        Usuario pelaApi = usuarioAtualService.obterOuCriar(loginPelaApi);
+
+        assertThat(pelaApi.getId()).isEqualTo(pelaWeb.getId());
+        assertThat(usuarioRepository.findAll()).hasSize(1);
     }
 }
