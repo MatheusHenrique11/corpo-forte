@@ -48,12 +48,16 @@
     .form-comentario input{flex:1; padding:7px 10px; border-radius:8px; border:1px solid var(--line);
                            background:var(--bg); color:var(--ink); font-size:.88rem; font-family:inherit;}
     .form-comentario button{margin-top:0; padding:7px 14px; font-size:.82rem;}
+    .form-apagar{display:inline; margin-left:8px;}
+    .apagar{background:none; border:none; padding:0; margin:0; color:var(--muted); font-size:.72rem;
+            font-weight:600; text-decoration:underline; cursor:pointer;}
+    .apagar:hover{color:#b3261e;}
   </style>
 </head>
 <body>
 
 <h1>🥋 Corpo Forte Tracker</h1>
-<p class="sub">Fase 7b — feed social com comentários e curtidas.</p>
+<p class="sub">Fase 7c — feed social com comentários, curtidas e exclusão do próprio conteúdo.</p>
 <nav>
   <a th:href="@{/perfil}">Perfil</a>
   <a th:href="@{/avaliacao}">Avaliação física</a>
@@ -83,6 +87,11 @@
     <div class="post" th:each="post : ${posts}">
       <span class="autor" th:text="${post.autorNome()}"></span>
       <span class="quando" th:text="${#temporals.format(post.criadoEm(), 'dd/MM/yyyy HH:mm')}"></span>
+      <form class="form-apagar" th:if="${post.podeApagar()}"
+            th:action="@{/feed/posts/{id}/apagar(id=${post.id()})}" method="post"
+            onsubmit="return confirm('Apagar este post? Comentários e curtidas saem junto.');">
+        <button type="submit" class="apagar" title="Apagar post">apagar</button>
+      </form>
       <p class="texto" th:text="${post.texto()}"></p>
 
       <div class="acoes">
@@ -101,6 +110,11 @@
         <div class="comentario" th:each="comentario : ${post.comentarios()}">
           <span class="autor" th:text="${comentario.autorNome()}"></span>
           <span class="quando" th:text="${#temporals.format(comentario.criadoEm(), 'dd/MM HH:mm')}"></span>
+          <form class="form-apagar" th:if="${comentario.podeApagar()}"
+                th:action="@{/feed/comentarios/{id}/apagar(id=${comentario.id()})}" method="post"
+                onsubmit="return confirm('Apagar este comentário?');">
+            <button type="submit" class="apagar" title="Apagar comentário">apagar</button>
+          </form>
           <p class="texto" th:text="${comentario.texto()}"></p>
         </div>
       </div>

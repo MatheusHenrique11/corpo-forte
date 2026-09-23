@@ -83,4 +83,24 @@ public class PostController {
         postService.alternarCurtida(postId, usuario.getId());
         return "redirect:/feed";
     }
+
+    /**
+     * POST .../apagar em vez de DELETE: form HTML so' envia GET/POST, e o
+     * HiddenHttpMethodFilter vem desligado no Spring Boot - mesmo formato
+     * de /curtir e /treino-do-dia/itens/{id}/concluir. DELETE de verdade
+     * fica pra uma API REST, que nao depende de form HTML.
+     */
+    @PostMapping("/feed/posts/{postId}/apagar")
+    public String apagarPost(@PathVariable Long postId, @AuthenticationPrincipal OidcUser principal) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
+        postService.apagarPost(postId, usuario.getId());
+        return "redirect:/feed";
+    }
+
+    @PostMapping("/feed/comentarios/{comentarioId}/apagar")
+    public String apagarComentario(@PathVariable Long comentarioId, @AuthenticationPrincipal OidcUser principal) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
+        postService.apagarComentario(comentarioId, usuario.getId());
+        return "redirect:/feed";
+    }
 }

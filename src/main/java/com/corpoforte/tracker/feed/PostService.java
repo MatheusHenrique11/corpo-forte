@@ -46,6 +46,49 @@ public class PostService {
     }
 
     /**
+     * So' o autor apaga o proprio post. Comentarios e curtidas saem junto
+     * pelo "on delete cascade" do banco (V11), nao por delete em laco aqui.
+     *
+     * Post alheio e post inexistente dao o MESMO 404 (nao 403 pro alheio):
+     * o mesmo post que qualquer um pode curtir/comentar (Fase 7b) nao pode
+     * ser apagado por outra pessoa, e a resposta nao deve confirmar nada
+     * alem disso - mesmo padrao de TreinoDoDiaService.alternarConclusao.
+     */
+    public void apagarPost(Long postId, Long usuarioId) {
+        Post post = postRepository.findById(postId)
+                .filter(encontrado -> encontrado.getUsuarioId().equals(usuarioId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        postRepository.delete(post);
+    }
+
+    /**
+     * Apaga quem escreveu o comentario OU quem e' dono do post - o autor do
+     * post modera a conversa no proprio espaco (Facebook/Instagram fazem o
+     * mesmo). Qualquer outra pessoa recebe 404, igual comentario
+     * inexistente.
+     */
+    public void apagarComentario(Long comentarioId, Long usuarioId) {
+        Comentario comentario = comentarioRepository.findById(comentarioId)
+                .filter(encontrado -> postRepository.findById(encontrado.getPostId())
+                        .map(post -> podeApagarComentario(encontrado, post.getUsuarioId(), usuarioId))
+                        .orElse(false))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        comentarioRepository.delete(comentario);
+    }
+
+    /**
+     * Regra unica de "quem pode apagar este comentario", usada tanto pra
+     * autorizar (apagarComentario) quanto pra decidir se o botao aparece
+     * (listarFeed) - duas copias dessa regra divergiriam na primeira
+     * mudanca (ex.: um novo papel que tambem possa moderar comentarios).
+     */
+    private static boolean podeApagarComentario(Comentario comentario, Long autorDoPostId, Long usuarioId) {
+        return comentario.getUsuarioId().equals(usuarioId) || autorDoPostId.equals(usuarioId);
+    }
+
+    /**
      * Curtir de novo descurte: o toggle nao tem estado proprio, e' so' a
      * linha existir ou nao.
      *
@@ -95,12 +138,17 @@ public class PostService {
         List<Comentario> comentarios = comentarioRepository.findByPostIdInOrderByCriadoEmAsc(postIds);
 
         Map<Long, String> nomePorUsuarioId = nomesDosAutores(posts, comentarios);
+        Map<Long, Long> autorPorPostId = posts.stream()
+                .collect(Collectors.toMap(Post::getId, Post::getUsuarioId));
 
         Map<Long, List<ComentarioView>> comentariosPorPost = comentarios.stream()
                 .collect(Collectors.groupingBy(Comentario::getPostId, LinkedHashMap::new,
                         Collectors.mapping(comentario -> new ComentarioView(comentario.getId(),
                                 nomePorUsuarioId.get(comentario.getUsuarioId()),
-                                comentario.getTexto(), comentario.getCriadoEm()), Collectors.toList())));
+                                comentario.getTexto(), comentario.getCriadoEm(),
+                                podeApagarComentario(comentario, autorPorPostId.get(comentario.getPostId()),
+                                        usuarioIdAtual)),
+                                Collectors.toList())));
 
         Map<Long, Long> curtidasPorPost = curtidaRepository.contarPorPost(postIds).stream()
                 .collect(Collectors.toMap(CurtidaRepository.ContagemPorPost::getPostId,
@@ -115,6 +163,7 @@ public class PostService {
                         post.getTexto(), post.getCriadoEm(),
                         curtidasPorPost.getOrDefault(post.getId(), 0L),
                         curtidosPorMim.contains(post.getId()),
+                        post.getUsuarioId().equals(usuarioIdAtual),
                         comentariosPorPost.getOrDefault(post.getId(), List.of())))
                 .toList();
     }

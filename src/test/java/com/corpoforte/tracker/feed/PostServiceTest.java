@@ -77,6 +77,45 @@ class PostServiceTest {
     }
 
     @Test
+    void apagarPostDeOutroUsuarioDa404SemApagar() {
+        when(postRepository.findById(1L)).thenReturn(Optional.of(new Post(7L, "post do 7", LocalDateTime.now())));
+
+        assertThatThrownBy(() -> service.apagarPost(1L, 8L))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        excecao -> assertThat(excecao.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+
+        verify(postRepository, never()).delete(any());
+    }
+
+    /** Autor do post (7) modera a conversa no proprio post: apaga o
+     * comentario que outra pessoa (8) escreveu. */
+    @Test
+    void autorDoPostApagaComentarioDeOutraPessoa() {
+        Comentario comentarioDo8 = new Comentario(1L, 8L, "comentario do 8", LocalDateTime.now());
+        when(comentarioRepository.findById(50L)).thenReturn(Optional.of(comentarioDo8));
+        when(postRepository.findById(1L)).thenReturn(Optional.of(new Post(7L, "post do 7", LocalDateTime.now())));
+
+        service.apagarComentario(50L, 7L);
+
+        verify(comentarioRepository).delete(comentarioDo8);
+    }
+
+    /** Nem autor do comentario (8) nem do post (7): terceiro (9) recebe o
+     * mesmo 404 de comentario inexistente. */
+    @Test
+    void terceiroNaoApagaComentarioDeOutrosEmPostDeOutros() {
+        when(comentarioRepository.findById(50L))
+                .thenReturn(Optional.of(new Comentario(1L, 8L, "comentario do 8", LocalDateTime.now())));
+        when(postRepository.findById(1L)).thenReturn(Optional.of(new Post(7L, "post do 7", LocalDateTime.now())));
+
+        assertThatThrownBy(() -> service.apagarComentario(50L, 9L))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        excecao -> assertThat(excecao.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+
+        verify(comentarioRepository, never()).delete(any());
+    }
+
+    @Test
     void comentarEmPostInexistenteDa404SemGravarNada() {
         when(postRepository.existsById(404L)).thenReturn(false);
 

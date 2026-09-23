@@ -4,6 +4,8 @@ import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
+import com.corpoforte.tracker.feed.Comentario;
+import com.corpoforte.tracker.feed.ComentarioRepository;
 import com.corpoforte.tracker.feed.Post;
 import com.corpoforte.tracker.feed.PostRepository;
 import com.corpoforte.tracker.feed.PostService;
@@ -57,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   @RequestBody     - zero ocorrências no projeto inteiro (é tudo
  *                       Thymeleaf server-side, nenhuma API JSON).
  *
- * Levantamento completo, os 12 endpoints do app (grep por
+ * Levantamento completo, os endpoints do app (grep por
  * @GetMapping/@PostMapping em todos os controllers):
  *
  *   GET  /                                             sem ID
@@ -76,8 +78,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   POST /feed                                         sem ID (PostForm so' tem texto)
  *   POST /feed/posts/{postId}/comentarios              RECEBE ID (@PathVariable, Fase 7b)
  *   POST /feed/posts/{postId}/curtir                   RECEBE ID (@PathVariable, Fase 7b)
+ *   POST /feed/posts/{postId}/apagar                   RECEBE ID (@PathVariable, Fase 7c)
+ *   POST /feed/comentarios/{comentarioId}/apagar       RECEBE ID (@PathVariable, Fase 7c)
  *
- * Conclusao: 3 dos 16 endpoints aceitam um ID de recurso vindo do cliente,
+ * Conclusao: 5 dos 18 endpoints aceitam um ID de recurso vindo do cliente,
  * confirmado nos quatro vetores (não só @PathVariable). Os outros 13
  * operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual(principal)) ou sobre enums de
@@ -102,9 +106,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * teste abaixo trava esse comportamento de proposito, pra ninguem
  * "corrigir" isso depois achando que e' um vazamento de isolamento.
  *
+ * Fase 7c: o MESMO post passa a ter as duas naturezas ao mesmo tempo -
+ * qualquer um curte/comenta (permitido), so' o autor apaga (proibido pros
+ * outros, 404 igual ID inexistente). Comentario tem dois donos legitimos:
+ * quem escreveu e o autor do post (modera o proprio espaco); um terceiro
+ * recebe 404. Os tres casos estao travados abaixo.
+ *
  * Quando uma fase futura adicionar um endpoint novo que receba ID por
- * qualquer um dos quatro vetores acima (ex.: apagar o proprio post - Fase
- * 7c -, editar um registro de peso especifico), atualizar esta lista e
+ * qualquer um dos quatro vetores acima (ex.: seguir um usuario, editar
+ * um registro de peso especifico), atualizar esta lista e
  * acrescentar o teste correspondente: acesso cruzado proibido no padrao de
  * /treino-do-dia/itens/{id}, ou acesso cruzado permitido no padrao do
  * feed, conforme o caso.
@@ -130,6 +140,9 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Autowired
     private PostService postService;
+
+    @Autowired
+    private ComentarioRepository comentarioRepository;
 
     private final OidcUser usuarioA = OidcTestUsers.principal("sub-endpoint-id-a", "Usuaria A", "a@exemplo.com");
     private final OidcUser usuarioB = OidcTestUsers.principal("sub-endpoint-id-b", "Usuario B", "b@exemplo.com");
@@ -216,6 +229,69 @@ class EndpointsComIdIT extends IntegrationTestBase {
         mockMvc.perform(post("/feed/posts/999999/comentarios")
                         .with(oidcLogin().oidcUser(usuarioA)).with(csrf())
                         .param("texto", "comentário em post fantasma"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void usuarioBNaoApagaPostDoUsuarioA() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+
+        mockMvc.perform(post("/feed/posts/" + postDeA.getId() + "/apagar")
+                        .with(oidcLogin().oidcUser(usuarioB)).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        assertThat(postRepository.existsById(postDeA.getId())).isTrue();
+    }
+
+    /**
+     * Comentario da A no post da A, e o B tenta apagar: B nao e' autor do
+     * comentario nem do post. (O caso permitido - autor do post apagando
+     * comentario de outra pessoa - vem no teste seguinte.)
+     */
+    @Test
+    void terceiroNaoApagaComentarioQueNaoEhDeleEmPostQueNaoEhDele() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+        Comentario comentarioDeA = comentarioRepository.saveAndFlush(
+                new Comentario(postDeA.getId(), a.getId(), "Comentário da A", LocalDateTime.now()));
+
+        mockMvc.perform(post("/feed/comentarios/" + comentarioDeA.getId() + "/apagar")
+                        .with(oidcLogin().oidcUser(usuarioB)).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        assertThat(comentarioRepository.existsById(comentarioDeA.getId())).isTrue();
+    }
+
+    /** Acesso cruzado PERMITIDO: A apaga o comentario que B deixou no post
+     * da A - o dono do post modera a conversa no proprio espaco. */
+    @Test
+    void autorDoPostApagaComentarioDeOutroUsuarioDeProposito() throws Exception {
+        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+        Comentario comentarioDeB = comentarioRepository.saveAndFlush(
+                new Comentario(postDeA.getId(), b.getId(), "Comentário do B", LocalDateTime.now()));
+
+        mockMvc.perform(post("/feed/comentarios/" + comentarioDeB.getId() + "/apagar")
+                        .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(comentarioRepository.existsById(comentarioDeB.getId())).isFalse();
+    }
+
+    @Test
+    void apagarPostOuComentarioComIdInexistenteDevolve404() throws Exception {
+        usuarioAtualService.obterUsuarioAtual(usuarioA);
+
+        mockMvc.perform(post("/feed/posts/999999/apagar")
+                        .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/feed/comentarios/999999/apagar")
+                        .with(oidcLogin().oidcUser(usuarioA)).with(csrf()))
                 .andExpect(status().isNotFound());
     }
 }

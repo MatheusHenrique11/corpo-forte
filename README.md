@@ -1,8 +1,8 @@
 # Corpo Forte Tracker
 
-Plataforma de treino e (no futuro) comunidade de calistenia. Construída em
-etapas pequenas — ver o plano completo e o roadmap de fases no histórico do
-projeto.
+Rede social de calistenia: gerar e acompanhar o próprio treino e
+compartilhar a rotina com a comunidade. Construída em fases pequenas — as
+já concluídas estão em "Fases" abaixo.
 
 ## Stack
 
@@ -102,6 +102,9 @@ arquivo decide em qual dos dois ele entra.
      (toggle) em qualquer post do feed, inclusive o dos outros: são os
      primeiros endpoints do sistema em que usar o ID de um recurso alheio
      é a função, não uma falha de isolamento. ✅
+   - 7c. **Apagar post e comentário** — o autor apaga o próprio post
+     (comentários e curtidas saem junto, pelo banco); comentário pode ser
+     apagado por quem escreveu ou pelo dono do post. Sem edição. ✅
 8. **Periodização** — o volume do treino sobe a cada semana em que houve
    treino concluído (usa o incremento que a Fase 2 já calculava e ninguém
    consumia), em ciclos de 8 semanas com aviso pra refazer a avaliação
@@ -110,4 +113,3 @@ arquivo decide em qual dos dois ele entra.
    a anterior: uma medição por dia por usuário, com comparação movimento a
    movimento entre a avaliação atual e a anterior ("10 → 15, +5") e
    histórico completo na tela `/avaliacao`. ✅
-# corpo-forte
