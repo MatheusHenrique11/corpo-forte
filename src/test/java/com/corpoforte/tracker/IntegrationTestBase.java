@@ -2,6 +2,7 @@ package com.corpoforte.tracker;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -17,9 +18,27 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * da primeira classe de teste) e encerrado pelo Ryuk do Testcontainers
  * quando a JVM termina. Isso evita pagar o custo de subir um Postgres novo
  * a cada classe de teste.
+ *
+ * @TestPropertySource (nao um src/test/resources/application.yml) pro
+ * registro OAuth2 fake (Fase 6): um application.yml em src/test/resources
+ * SUBSTITUI o principal inteiro no classpath de teste em vez de mesclar -
+ * "open-in-view: false" (que evita esconder LazyInitializationException,
+ * ver Fase 4) desaparecia silenciosamente nos testes. @TestPropertySource
+ * so adiciona/sobrescreve as propriedades listadas, mantendo o resto do
+ * application.yml principal em vigor.
  */
 @SpringBootTest
+@TestPropertySource(properties = {
+        "spring.security.oauth2.client.registration.google.client-id=teste-client-id",
+        "spring.security.oauth2.client.registration.google.client-secret=teste-client-secret",
+        "spring.security.oauth2.client.registration.google.scope=openid,profile,email",
+        "app.owner-email=" + IntegrationTestBase.OWNER_EMAIL
+})
 public abstract class IntegrationTestBase {
+
+    /** E-mail configurado como app.owner-email nos testes (Fase 6) - o
+     * unico que pode reivindicar uma conta local orfa. */
+    public static final String OWNER_EMAIL = "dona-da-conta@exemplo.com";
 
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");

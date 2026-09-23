@@ -3,6 +3,8 @@ package com.corpoforte.tracker.exercicio;
 import com.corpoforte.tracker.usuario.Equipamento;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,16 +29,17 @@ public class EquipamentoController {
     }
 
     @GetMapping("/equipamentos")
-    public String exibirEquipamentos(Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String exibirEquipamentos(@AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         model.addAttribute("opcoes", opcoesSelecionaveis());
         model.addAttribute("selecionados", usuario.getEquipamentosDisponiveis());
         return "equipamentos";
     }
 
     @PostMapping("/equipamentos")
-    public String salvarEquipamentos(@RequestParam(required = false) Set<Equipamento> equipamentos) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String salvarEquipamentos(@RequestParam(required = false) Set<Equipamento> equipamentos,
+                                      @AuthenticationPrincipal OidcUser principal) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         usuario.atualizarEquipamentos(equipamentos == null ? Set.of() : equipamentos);
         usuarioAtualService.salvar(usuario);
         return "redirect:/equipamentos";

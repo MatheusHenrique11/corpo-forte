@@ -3,6 +3,8 @@ package com.corpoforte.tracker.peso;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -28,8 +30,8 @@ public class RegistroPesoController {
     }
 
     @GetMapping("/peso")
-    public String exibirRegistroPeso(Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String exibirRegistroPeso(@AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         model.addAttribute("registroPesoForm", new RegistroPesoForm());
         adicionarHistoricoETendencia(model, usuario.getId());
         return "peso";
@@ -37,8 +39,9 @@ public class RegistroPesoController {
 
     @PostMapping("/peso")
     public String salvarRegistroPeso(@Valid @ModelAttribute("registroPesoForm") RegistroPesoForm form,
-                                      BindingResult bindingResult, Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+                                      BindingResult bindingResult, @AuthenticationPrincipal OidcUser principal,
+                                      Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
 
         if (bindingResult.hasErrors()) {
             adicionarHistoricoETendencia(model, usuario.getId());

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Corpo Forte Tracker — Equipamentos</title>
+  <title>Corpo Forte Tracker — Feed</title>
   <style>
     :root{
       --bg:#f6f3ee; --card:#ffffff; --ink:#1c1a17; --muted:#6b665e;
@@ -21,16 +21,25 @@
     nav a{color:var(--accent2); text-decoration:none; font-weight:600; margin-right:14px;}
     nav a:hover{text-decoration:underline;}
     .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:16px 0;}
-    .opcao{display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:.95rem;}
-    .opcao:last-of-type{border-bottom:none;}
-    .opcao input{width:auto; margin:0;}
-    button{background:var(--accent2); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; margin-top:12px;}
+    textarea{
+      width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+      background:var(--bg); color:var(--ink); font-size:1rem; margin-bottom:6px;
+      font-family:inherit; resize:vertical; min-height:70px;
+    }
+    .erro{color:#b3261e; font-size:.78rem; margin:-2px 0 10px;}
+    button{background:var(--accent2); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; margin-top:8px;}
+    .post{padding:12px 0; border-bottom:1px solid var(--line);}
+    .post:last-of-type{border-bottom:none;}
+    .post .autor{font-weight:700; font-size:.9rem;}
+    .post .quando{color:var(--muted); font-size:.72rem; margin-left:8px;}
+    .post .texto{margin:4px 0 0; white-space:pre-wrap;}
+    .vazio{color:var(--muted); font-size:.9rem;}
   </style>
 </head>
 <body>
 
 <h1>🥋 Corpo Forte Tracker</h1>
-<p class="sub">Fase 4 — equipamentos disponíveis.</p>
+<p class="sub">Fase 7a — feed social.</p>
 <nav>
   <a th:href="@{/perfil}">Perfil</a>
   <a th:href="@{/avaliacao}">Avaliação física</a>
@@ -48,15 +57,22 @@
 </p>
 
 <div class="card">
-  <p class="sub">Marque o que você tem disponível. Isso filtra o catálogo de exercícios em <a th:href="@{/exercicios}">/exercicios</a>.</p>
-  <form th:action="@{/equipamentos}" method="post">
-    <div class="opcao" th:each="opcao : ${opcoes}">
-      <input type="checkbox" name="equipamentos" th:id="${opcao}" th:value="${opcao}"
-             th:checked="${selecionados.contains(opcao)}">
-      <label th:for="${opcao}" th:text="${opcao.rotulo}" style="margin:0; text-transform:none; font-size:inherit; color:inherit;"></label>
-    </div>
-    <button type="submit">Salvar equipamentos</button>
+  <form th:action="@{/feed}" th:object="${postForm}" method="post">
+    <textarea id="texto" th:field="*{texto}" placeholder="Compartilhe algo com a comunidade..."></textarea>
+    <p class="erro" th:if="${#fields.hasErrors('texto')}" th:errors="*{texto}"></p>
+    <button type="submit">Postar</button>
   </form>
+</div>
+
+<div class="card">
+  <div th:if="${not #lists.isEmpty(posts)}">
+    <div class="post" th:each="post : ${posts}">
+      <span class="autor" th:text="${post.autorNome()}"></span>
+      <span class="quando" th:text="${#temporals.format(post.criadoEm(), 'dd/MM/yyyy HH:mm')}"></span>
+      <p class="texto" th:text="${post.texto()}"></p>
+    </div>
+  </div>
+  <p class="vazio" th:if="${#lists.isEmpty(posts)}">Ninguém postou nada ainda. Seja o primeiro!</p>
 </div>
 
 </body>

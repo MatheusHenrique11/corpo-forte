@@ -17,5 +17,26 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # Credenciais reais vem de variavel de ambiente (nunca commitadas). O
+  # fallback "nao-configurado" existe so pra nao travar o boot quando as
+  # variaveis nao estao setadas - o login com Google nao vai funcionar
+  # nesse caso, mas o resto da app sobe normalmente. Ver README pra como
+  # criar as credenciais no Google Cloud Console.
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:nao-configurado}
+            client-secret: ${GOOGLE_CLIENT_SECRET:nao-configurado}
+            scope: openid,profile,email
+
 server:
   port: 8090
+
+app:
+  # E-mail do dono da conta local existente antes do login chegar (Fase 6).
+  # So esse e-mail, com email_verified=true no token do Google, pode
+  # reivindicar a conta orfa no primeiro login - vazio (padrao) desativa a
+  # reivindicacao inteiramente, nunca reivindica "o primeiro que logar".
+  owner-email: ${APP_OWNER_EMAIL:}

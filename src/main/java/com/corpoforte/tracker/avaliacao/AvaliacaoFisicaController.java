@@ -3,6 +3,8 @@ package com.corpoforte.tracker.avaliacao;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -29,8 +31,8 @@ public class AvaliacaoFisicaController {
     }
 
     @GetMapping("/avaliacao")
-    public String exibirAvaliacao(Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String exibirAvaliacao(@AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterDoUsuario(usuario.getId());
 
         model.addAttribute("avaliacaoForm", avaliacao.map(this::paraFormulario).orElseGet(AvaliacaoFisicaForm::new));
@@ -41,12 +43,13 @@ public class AvaliacaoFisicaController {
 
     @PostMapping("/avaliacao")
     public String salvarAvaliacao(@Valid @ModelAttribute("avaliacaoForm") AvaliacaoFisicaForm form,
-                                   BindingResult bindingResult, Model model) {
+                                   BindingResult bindingResult, @AuthenticationPrincipal OidcUser principal,
+                                   Model model) {
         if (bindingResult.hasErrors()) {
             return "avaliacao";
         }
 
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         avaliacaoFisicaService.salvar(usuario.getId(),
                 form.getRepsPuxarVertical(), form.getRepsEmpurrarVertical(), form.getRepsPernasBilateral(),
                 form.getRepsPuxarHorizontal(), form.getRepsEmpurrarHorizontal(), form.getRepsPernasUnilateral());

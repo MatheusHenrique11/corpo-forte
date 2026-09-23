@@ -1,6 +1,7 @@
 package com.corpoforte.tracker.peso;
 
 import com.corpoforte.tracker.IntegrationTestBase;
+import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,8 @@ class RegistroPesoRepositoryIT extends IntegrationTestBase {
 
     @Test
     void bancoRejeitaDoisRegistrosNaMesmaDataParaOMesmoUsuario() {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(
+                OidcTestUsers.principal("sub-registro-peso-constraint", "Usuaria Teste", "teste@exemplo.com"));
         LocalDate data = LocalDate.of(2026, 3, 1);
 
         registroPesoRepository.saveAndFlush(new RegistroPeso(usuario.getId(), data, 80.0));

@@ -18,10 +18,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Conta do usuario. email/googleSub ficam nullable por enquanto porque o
- * login com Google so entra numa fase futura (hoje o sistema roda com um
- * unico usuario "local"); quando o login chegar, essas colunas passam a
- * ser preenchidas sem precisar de uma migration destrutiva.
+ * Conta do usuario. email/googleSub nasceram nullable na Fase 1 exatamente
+ * pra isso: a Fase 6 (login com Google) preenche essas colunas em contas ja
+ * existentes sem precisar de migration destrutiva nenhuma.
  */
 @Entity
 @Table(name = "usuario")
@@ -121,6 +120,18 @@ public class Usuario {
      */
     public void atualizarEquipamentos(Set<Equipamento> equipamentos) {
         this.equipamentosDisponiveis = new HashSet<>(equipamentos);
+    }
+
+    /**
+     * Usado uma unica vez pelo login com Google (Fase 6): ou na conta
+     * "reivindicada" (usuario local existente que ainda nao tinha
+     * googleSub) ou na criacao de uma conta nova. Nao e' chamado de novo em
+     * logins seguintes - o nome que o usuario editar depois em /perfil nao
+     * e' sobrescrito a cada login.
+     */
+    public void vincularConta(String googleSub, String email) {
+        this.googleSub = googleSub;
+        this.email = email;
     }
 
     public Long getId() {

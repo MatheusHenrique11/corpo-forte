@@ -4,6 +4,8 @@ import com.corpoforte.tracker.usuario.Equipamento;
 import com.corpoforte.tracker.usuario.NivelTreino;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,8 +33,8 @@ public class ExercicioController {
             @RequestParam(required = false) MovimentoPadrao movimento,
             @RequestParam(required = false) Equipamento equipamento,
             @RequestParam(defaultValue = "false") boolean apenasCompativel,
-            Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+            @AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
 
         List<Exercicio> exercicios = exercicioFiltroService.filtrar(
                 exercicioService.listarTodos(), nivel, movimento, equipamento);

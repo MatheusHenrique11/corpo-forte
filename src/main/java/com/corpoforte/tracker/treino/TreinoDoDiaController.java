@@ -4,6 +4,8 @@ import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +29,8 @@ public class TreinoDoDiaController {
     }
 
     @GetMapping("/treino-do-dia")
-    public String exibirTreinoDoDia(Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String exibirTreinoDoDia(@AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         Optional<AvaliacaoFisica> avaliacao = avaliacaoFisicaService.obterDoUsuario(usuario.getId());
 
         if (avaliacao.isEmpty()) {
@@ -43,8 +45,9 @@ public class TreinoDoDiaController {
     }
 
     @PostMapping("/treino-do-dia/itens/{itemId}/concluir")
-    public String alternarConclusao(@PathVariable Long itemId) {
-        treinoDoDiaService.alternarConclusao(itemId);
+    public String alternarConclusao(@PathVariable Long itemId, @AuthenticationPrincipal OidcUser principal) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
+        treinoDoDiaService.alternarConclusao(usuario.getId(), itemId);
         return "redirect:/treino-do-dia";
     }
 }

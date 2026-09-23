@@ -8,7 +8,9 @@ import com.corpoforte.tracker.exercicio.ExercicioFiltroService;
 import com.corpoforte.tracker.exercicio.ExercicioService;
 import com.corpoforte.tracker.exercicio.MovimentoPadrao;
 import com.corpoforte.tracker.usuario.Usuario;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -55,9 +57,25 @@ public class TreinoDoDiaService {
         return paraView(treino);
     }
 
-    public void alternarConclusao(Long itemId) {
+    /**
+     * usuarioId vem do usuario autenticado (Controller), nunca do cliente.
+     * Confere que o item pertence a um TreinoDoDia desse usuario antes de
+     * alterar - sem essa checagem, dava pra alternar o item de qualquer
+     * outro usuario so adivinhando/incrementando o ID (Fase 6).
+     * 404 em vez de 403 pra nao confirmar pra quem nao e' dono que o ID
+     * existe.
+     */
+    public void alternarConclusao(Long usuarioId, Long itemId) {
         TreinoItem item = treinoItemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item de treino nao encontrado: " + itemId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        TreinoDoDia treino = treinoDoDiaRepository.findById(item.getTreinoDoDiaId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (!treino.getUsuarioId().equals(usuarioId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
         item.alternarConclusao();
         treinoItemRepository.save(item);
     }

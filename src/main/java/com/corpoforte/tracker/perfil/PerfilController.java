@@ -5,6 +5,8 @@ import com.corpoforte.tracker.usuario.ObjetivoTreino;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -29,8 +31,8 @@ public class PerfilController {
     }
 
     @GetMapping("/perfil")
-    public String exibirPerfil(Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String exibirPerfil(@AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         model.addAttribute("perfilForm", paraFormulario(usuario));
         model.addAttribute("pesoAtual", usuario.getPesoKg());
         model.addAttribute("resultado", calcularResultado(usuario));
@@ -39,8 +41,9 @@ public class PerfilController {
     }
 
     @PostMapping("/perfil")
-    public String salvarPerfil(@Valid @ModelAttribute("perfilForm") PerfilForm form, BindingResult bindingResult, Model model) {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+    public String salvarPerfil(@Valid @ModelAttribute("perfilForm") PerfilForm form, BindingResult bindingResult,
+                                @AuthenticationPrincipal OidcUser principal, Model model) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
         model.addAttribute("pesoAtual", usuario.getPesoKg());
         adicionarOpcoesDeEnum(model);
 

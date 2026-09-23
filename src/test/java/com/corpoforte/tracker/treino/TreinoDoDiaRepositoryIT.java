@@ -1,6 +1,7 @@
 package com.corpoforte.tracker.treino;
 
 import com.corpoforte.tracker.IntegrationTestBase;
+import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,8 @@ class TreinoDoDiaRepositoryIT extends IntegrationTestBase {
 
     @Test
     void bancoRejeitaDoisTreinosNoMesmoDiaParaOMesmoUsuario() {
-        Usuario usuario = usuarioAtualService.obterOuCriarPadrao();
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(
+                OidcTestUsers.principal("sub-treino-constraint", "Usuaria Teste", "teste@exemplo.com"));
         LocalDate data = LocalDate.of(2026, 4, 1);
 
         treinoDoDiaRepository.saveAndFlush(new TreinoDoDia(usuario.getId(), data));
