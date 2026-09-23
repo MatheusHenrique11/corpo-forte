@@ -7,4 +7,6 @@ import java.util.List;
 public interface TreinoItemRepository extends JpaRepository<TreinoItem, Long> {
 
     List<TreinoItem> findByTreinoDoDiaId(Long treinoDoDiaId);
+
+    List<TreinoItem> findByTreinoDoDiaIdInAndConcluidoTrue(List<Long> treinoDoDiaIds);
 }

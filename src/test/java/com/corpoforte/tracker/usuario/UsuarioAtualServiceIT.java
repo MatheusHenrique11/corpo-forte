@@ -7,8 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -32,7 +30,7 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
     @Test
     void primeiroLoginDoDonoConfiguradoReivindicaAUnicaContaLocalOrfaExistente() {
         Usuario contaLocal = usuarioRepository.save(new Usuario(
-                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO, LocalDate.now()));
+                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO));
 
         OidcUser principal = OidcTestUsers.principal("sub-reivindicacao", "Nome do Google", OWNER_EMAIL);
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(principal);
@@ -49,7 +47,7 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
     @Test
     void emailDiferenteDoDonoNaoReivindicaContaOrfaMesmoVerificado() {
         Usuario contaLocal = usuarioRepository.save(new Usuario(
-                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO, LocalDate.now()));
+                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO));
 
         OidcUser intruso = OidcTestUsers.principal("sub-intruso", "Outra Pessoa", "outra-pessoa@exemplo.com");
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(intruso);
@@ -64,7 +62,7 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
     @Test
     void emailDoDonoNaoVerificadoNaoReivindicaContaOrfa() {
         Usuario contaLocal = usuarioRepository.save(new Usuario(
-                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO, LocalDate.now()));
+                "Meu Perfil", 82.0, 178, 30, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INTERMEDIARIO));
 
         OidcUser naoVerificado = OidcTestUsers.principal("sub-nao-verificado", "Nome do Google", OWNER_EMAIL, false);
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(naoVerificado);

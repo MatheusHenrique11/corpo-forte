@@ -13,7 +13,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 
-import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -60,9 +59,6 @@ public class Usuario {
     @Column(nullable = false)
     private NivelTreino nivel;
 
-    @Column(name = "data_inicio_ciclo", nullable = false)
-    private LocalDate dataInicioCiclo;
-
     // EAGER de proposito: com "open-in-view: false" nao ha sessao Hibernate
     // aberta fora do repository, e essa colecao e' lida no Controller (view
     // /exercicios, filtro de compatibilidade) - LAZY quebraria com
@@ -80,14 +76,13 @@ public class Usuario {
     }
 
     public Usuario(String nome, double pesoKg, double alturaCm, int idade,
-                    ObjetivoTreino objetivo, NivelTreino nivel, LocalDate dataInicioCiclo) {
+                    ObjetivoTreino objetivo, NivelTreino nivel) {
         this.nome = nome;
         this.pesoKg = pesoKg;
         this.alturaCm = alturaCm;
         this.idade = idade;
         this.objetivo = objetivo;
         this.nivel = nivel;
-        this.dataInicioCiclo = dataInicioCiclo;
     }
 
     /**
@@ -172,10 +167,6 @@ public class Usuario {
 
     public NivelTreino getNivel() {
         return nivel;
-    }
-
-    public LocalDate getDataInicioCiclo() {
-        return dataInicioCiclo;
     }
 
     public Set<Equipamento> getEquipamentosDisponiveis() {

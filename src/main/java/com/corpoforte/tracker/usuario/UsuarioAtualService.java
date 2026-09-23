@@ -5,7 +5,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,8 +61,7 @@ public class UsuarioAtualService {
                         178,
                         27,
                         ObjetivoTreino.PERDA_GORDURA,
-                        NivelTreino.INICIANTE,
-                        LocalDate.now()));
+                        NivelTreino.INICIANTE));
 
         usuario.vincularConta(principal.getSubject(), principal.getEmail());
 

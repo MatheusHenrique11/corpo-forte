@@ -35,26 +35,56 @@ public class TreinoDoDiaService {
     private final ExercicioFiltroService exercicioFiltroService;
     private final AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService;
     private final TreinoDoDiaGeradorService treinoDoDiaGeradorService;
+    private final PeriodizacaoService periodizacaoService;
 
     public TreinoDoDiaService(TreinoDoDiaRepository treinoDoDiaRepository, TreinoItemRepository treinoItemRepository,
                                ExercicioService exercicioService, ExercicioFiltroService exercicioFiltroService,
                                AvaliacaoFisicaCalculoService avaliacaoFisicaCalculoService,
-                               TreinoDoDiaGeradorService treinoDoDiaGeradorService) {
+                               TreinoDoDiaGeradorService treinoDoDiaGeradorService,
+                               PeriodizacaoService periodizacaoService) {
         this.treinoDoDiaRepository = treinoDoDiaRepository;
         this.treinoItemRepository = treinoItemRepository;
         this.exercicioService = exercicioService;
         this.exercicioFiltroService = exercicioFiltroService;
         this.avaliacaoFisicaCalculoService = avaliacaoFisicaCalculoService;
         this.treinoDoDiaGeradorService = treinoDoDiaGeradorService;
+        this.periodizacaoService = periodizacaoService;
     }
 
     public TreinoDoDiaView obterOuGerarDoDia(Usuario usuario, AvaliacaoFisica avaliacaoFisica) {
         LocalDate hoje = LocalDate.now();
+        LocalDate inicioDoCiclo = avaliacaoFisica.getDataAvaliacao();
+        int semanasProgredidas = semanasProgredidasNoCiclo(usuario.getId(), inicioDoCiclo, hoje);
 
         TreinoDoDia treino = treinoDoDiaRepository.findByUsuarioIdAndData(usuario.getId(), hoje)
-                .orElseGet(() -> gerarNovo(usuario, avaliacaoFisica, hoje));
+                .orElseGet(() -> gerarNovo(usuario, avaliacaoFisica, hoje, semanasProgredidas));
 
-        return paraView(treino);
+        return paraView(treino, periodizacaoService.status(inicioDoCiclo, hoje, semanasProgredidas));
+    }
+
+    /**
+     * O ciclo e' ancorado em AvaliacaoFisica.dataAvaliacao (nao numa data
+     * separada): refazer a avaliacao atualiza essa data e reinicia o ciclo
+     * de graca, sem campo nem logica de reset.
+     */
+    private int semanasProgredidasNoCiclo(Long usuarioId, LocalDate inicioDoCiclo, LocalDate hoje) {
+        List<TreinoDoDia> treinosDoCiclo =
+                treinoDoDiaRepository.findByUsuarioIdAndDataGreaterThanEqual(usuarioId, inicioDoCiclo);
+
+        if (treinosDoCiclo.isEmpty()) {
+            return 0;
+        }
+
+        Map<Long, LocalDate> dataPorTreinoId = treinosDoCiclo.stream()
+                .collect(Collectors.toMap(TreinoDoDia::getId, TreinoDoDia::getData));
+
+        Set<LocalDate> semanasComTreinoConcluido =
+                treinoItemRepository.findByTreinoDoDiaIdInAndConcluidoTrue(List.copyOf(dataPorTreinoId.keySet()))
+                        .stream()
+                        .map(item -> periodizacaoService.inicioDaSemana(dataPorTreinoId.get(item.getTreinoDoDiaId())))
+                        .collect(Collectors.toSet());
+
+        return periodizacaoService.semanasProgredidas(semanasComTreinoConcluido, hoje);
     }
 
     /**
@@ -80,7 +110,8 @@ public class TreinoDoDiaService {
         treinoItemRepository.save(item);
     }
 
-    private TreinoDoDia gerarNovo(Usuario usuario, AvaliacaoFisica avaliacaoFisica, LocalDate hoje) {
+    private TreinoDoDia gerarNovo(Usuario usuario, AvaliacaoFisica avaliacaoFisica, LocalDate hoje,
+                                   int semanasProgredidas) {
         List<AvaliacaoFisicaItemResultado> volumes = avaliacaoFisicaCalculoService.calcular(
                 avaliacaoFisica.getRepsPuxarVertical(), avaliacaoFisica.getRepsEmpurrarVertical(),
                 avaliacaoFisica.getRepsPernasBilateral(), avaliacaoFisica.getRepsPuxarHorizontal(),
@@ -96,7 +127,7 @@ public class TreinoDoDiaService {
             candidatosPorMovimento.put(movimento, candidatos);
         }
 
-        TreinoGerado gerado = treinoDoDiaGeradorService.gerar(volumes, candidatosPorMovimento);
+        TreinoGerado gerado = treinoDoDiaGeradorService.gerar(volumes, candidatosPorMovimento, semanasProgredidas);
 
         TreinoDoDia treinoDoDia = treinoDoDiaRepository.save(new TreinoDoDia(usuario.getId(), hoje));
         for (ItemGerado item : gerado.itens()) {
@@ -107,7 +138,7 @@ public class TreinoDoDiaService {
         return treinoDoDia;
     }
 
-    private TreinoDoDiaView paraView(TreinoDoDia treino) {
+    private TreinoDoDiaView paraView(TreinoDoDia treino, CicloStatus ciclo) {
         List<TreinoItem> itens = treinoItemRepository.findByTreinoDoDiaId(treino.getId());
         Map<Long, Exercicio> catalogoPorId = exercicioService.listarTodos().stream()
                 .collect(Collectors.toMap(Exercicio::getId, Function.identity()));
@@ -126,6 +157,6 @@ public class TreinoDoDiaService {
                 .filter(movimento -> !presentes.contains(movimento))
                 .toList();
 
-        return new TreinoDoDiaView(views, semOpcao);
+        return new TreinoDoDiaView(views, semOpcao, ciclo);
     }
 }

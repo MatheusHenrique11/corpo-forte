@@ -99,4 +99,8 @@ arquivo decide em qual dos dois ele entra.
      intencionalmente compartilhada do sistema, diferente de tudo o resto,
      que é isolado por usuário desde a Fase 6). ✅
    - 7b. Comentários + curtidas — pendente.
+8. **Periodização** — o volume do treino sobe a cada semana em que houve
+   treino concluído (usa o incremento que a Fase 2 já calculava e ninguém
+   consumia), em ciclos de 8 semanas com aviso pra refazer a avaliação
+   física ao fim. ✅
 # corpo-forte

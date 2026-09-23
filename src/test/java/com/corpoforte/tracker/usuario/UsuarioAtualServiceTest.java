@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +27,7 @@ class UsuarioAtualServiceTest {
     void loginConcorrenteQueColideNaConstraintBuscaDeNovoEmVezDeQuebrarCom500() {
         OidcUser principal = OidcTestUsers.principal("sub-corrida", "Fulana", "fulana@exemplo.com");
         Usuario usuarioCriadoPelaOutraRequisicao = new Usuario(
-                "Fulana", 100, 178, 27, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INICIANTE, LocalDate.now());
+                "Fulana", 100, 178, 27, ObjetivoTreino.PERDA_GORDURA, NivelTreino.INICIANTE);
 
         // 1a chamada: ninguem commitou ainda -> nao acha. 2a chamada (apos
         // capturar a excecao): a outra requisicao ja commitou -> acha.

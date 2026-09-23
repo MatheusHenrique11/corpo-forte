@@ -40,7 +40,7 @@ class TreinoDoDiaGeradorServiceTest {
         }
         candidatos.put(MovimentoPadrao.PERNAS_BILATERAL, List.of(agachamento));
 
-        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(24), candidatos);
+        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(24), candidatos, 0);
 
         assertThat(resultado.itens()).hasSize(1);
         ItemGerado item = resultado.itens().get(0);
@@ -64,7 +64,7 @@ class TreinoDoDiaGeradorServiceTest {
         }
         candidatos.put(MovimentoPadrao.EMPURRAR_HORIZONTAL, List.of(unico));
 
-        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(30), candidatos);
+        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(30), candidatos, 0);
 
         assertThat(resultado.itens()).hasSize(1);
         assertThat(resultado.itens().get(0).exercicio()).isEqualTo(unico);
@@ -86,8 +86,31 @@ class TreinoDoDiaGeradorServiceTest {
         candidatos.put(MovimentoPadrao.PUXAR_HORIZONTAL, List.of(unico));
 
         // volume inicial 25 -> 25/3 = 8.33 -> arredonda pra 8
-        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(25), candidatos);
+        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(25), candidatos, 0);
 
         assertThat(resultado.itens().get(0).repeticoes()).isEqualTo(8);
+    }
+
+    /**
+     * Fase 8: cada semana progredida soma o incremento (D) ao volume - o
+     * valor que a Fase 2 ja calculava e ninguem usava.
+     */
+    @Test
+    void cadaSemanaProgredidaSomaOIncrementoAoVolume() {
+        Exercicio agachamento = new Exercicio("Agachamento livre", MovimentoPadrao.PERNAS_BILATERAL,
+                NivelTreino.INICIANTE, Equipamento.NENHUM);
+
+        Map<MovimentoPadrao, List<Exercicio>> candidatos = new EnumMap<>(MovimentoPadrao.class);
+        for (MovimentoPadrao movimento : MovimentoPadrao.values()) {
+            candidatos.put(movimento, List.of());
+        }
+        candidatos.put(MovimentoPadrao.PERNAS_BILATERAL, List.of(agachamento));
+
+        // volume inicial 24, incremento 3, 2 semanas progredidas
+        // -> (24 + 2*3) / 3 = 10 repeticoes (contra 8 na semana 1)
+        TreinoGerado resultado = service.gerar(volumesComVolumeInicial(24), candidatos, 2);
+
+        assertThat(resultado.itens().get(0).repeticoes()).isEqualTo(10);
+        assertThat(resultado.itens().get(0).series()).isEqualTo(3);
     }
 }

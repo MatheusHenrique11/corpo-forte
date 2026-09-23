@@ -41,7 +41,7 @@
 <body>
 
 <h1>🥋 Corpo Forte Tracker</h1>
-<p class="sub">Fase 5 — treino do dia gerado automaticamente.</p>
+<p class="sub">Fase 8 — treino do dia com volume progredindo por semana.</p>
 <nav>
   <a th:href="@{/perfil}">Perfil</a>
   <a th:href="@{/avaliacao}">Avaliação física</a>
@@ -67,6 +67,17 @@
 </div>
 
 <div class="card" th:if="${treino != null}">
+  <p class="sub" style="margin-bottom:6px;">
+    <b th:text="'Semana ' + ${treino.ciclo().semanaAtual()} + ' de ' + ${treino.ciclo().totalSemanas()}"></b>
+    — o volume sobe a cada semana em que você concluir treino.
+  </p>
+
+  <p class="aviso" th:if="${treino.ciclo().precisaReavaliar()}" style="margin-bottom:12px;">
+    Já se passaram <span th:text="${treino.ciclo().totalSemanas()}">8</span> semanas desde sua última
+    avaliação física. Refaça a <a class="link" th:href="@{/avaliacao}">avaliação</a> pra recalibrar o
+    volume — seus treinos continuam sendo gerados até lá.
+  </p>
+
   <div class="item" th:each="item : ${treino.itens()}">
     <form th:action="@{'/treino-do-dia/itens/' + ${item.itemId()} + '/concluir'}" method="post">
       <button type="submit" class="concluirBtn" th:classappend="${item.concluido()} ? 'feito' : ''"

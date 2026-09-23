@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -26,12 +24,12 @@ class UsuarioRepositoryIT extends IntegrationTestBase {
     @Test
     void bancoRejeitaDoisUsuariosComOMesmoGoogleSub() {
         Usuario primeiro = new Usuario("Primeira Conta", 70, 170, 25,
-                ObjetivoTreino.PERDA_GORDURA, NivelTreino.INICIANTE, LocalDate.now());
+                ObjetivoTreino.PERDA_GORDURA, NivelTreino.INICIANTE);
         primeiro.vincularConta("sub-duplicado", "primeira@exemplo.com");
         usuarioRepository.saveAndFlush(primeiro);
 
         Usuario segundo = new Usuario("Segunda Conta", 80, 180, 30,
-                ObjetivoTreino.GANHO_MASSA, NivelTreino.AVANCADO, LocalDate.now());
+                ObjetivoTreino.GANHO_MASSA, NivelTreino.AVANCADO);
         segundo.vincularConta("sub-duplicado", "segunda@exemplo.com");
 
         assertThatThrownBy(() -> usuarioRepository.saveAndFlush(segundo))

@@ -11,11 +11,16 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * 3 series fixas; repeticoes = volume inicial (Fase 2) dividido por 3,
- * arredondado - mesmo Math.round ja usado em AvaliacaoFisicaCalculoService,
- * consistente. Quando um padrao de movimento nao tem nenhum exercicio
- * compativel (nivel + equipamento do usuario), o padrao e' pulado em vez de
- * travar a geracao inteira - ver movimentosSemOpcao no resultado.
+ * 3 series fixas; repeticoes = volume da semana dividido por 3, arredondado
+ * - mesmo Math.round ja usado em AvaliacaoFisicaCalculoService, consistente.
+ *
+ * A partir da Fase 8 o volume nao e' mais fixo no volume inicial: cada
+ * semana progredida (ver PeriodizacaoService) soma um incremento - o valor
+ * D que a Fase 2 ja calculava e ninguem usava.
+ *
+ * Quando um padrao de movimento nao tem nenhum exercicio compativel (nivel +
+ * equipamento do usuario), o padrao e' pulado em vez de travar a geracao
+ * inteira - ver movimentosSemOpcao no resultado.
  *
  * Sem Spring/banco no meio (Random e' so um campo, nao injetado): da pra
  * testar chamando gerar(...) direto, mesmo molde dos outros
@@ -29,7 +34,8 @@ public class TreinoDoDiaGeradorService {
     private final Random random = new Random();
 
     public TreinoGerado gerar(List<AvaliacaoFisicaItemResultado> volumes,
-                               Map<MovimentoPadrao, List<Exercicio>> candidatosPorMovimento) {
+                               Map<MovimentoPadrao, List<Exercicio>> candidatosPorMovimento,
+                               int semanasProgredidas) {
         List<ItemGerado> itens = new ArrayList<>();
         List<MovimentoPadrao> semOpcao = new ArrayList<>();
 
@@ -42,8 +48,8 @@ public class TreinoDoDiaGeradorService {
             }
 
             Exercicio escolhido = candidatos.get(random.nextInt(candidatos.size()));
-            int volumeInicial = volumeInicialDoMovimento(volumes, movimento);
-            int repeticoes = (int) Math.round(volumeInicial / (double) SERIES_FIXAS);
+            int volumeDaSemana = volumeDaSemanaDoMovimento(volumes, movimento, semanasProgredidas);
+            int repeticoes = (int) Math.round(volumeDaSemana / (double) SERIES_FIXAS);
 
             itens.add(new ItemGerado(movimento, escolhido, SERIES_FIXAS, repeticoes));
         }
@@ -51,11 +57,13 @@ public class TreinoDoDiaGeradorService {
         return new TreinoGerado(itens, semOpcao);
     }
 
-    private int volumeInicialDoMovimento(List<AvaliacaoFisicaItemResultado> volumes, MovimentoPadrao movimento) {
-        return volumes.stream()
+    private int volumeDaSemanaDoMovimento(List<AvaliacaoFisicaItemResultado> volumes, MovimentoPadrao movimento,
+                                           int semanasProgredidas) {
+        AvaliacaoFisicaItemResultado volume = volumes.stream()
                 .filter(item -> item.movimento() == movimento)
                 .findFirst()
-                .map(AvaliacaoFisicaItemResultado::volumeInicial)
                 .orElseThrow(() -> new IllegalArgumentException("Sem volume calculado para " + movimento));
+
+        return volume.volumeInicial() + semanasProgredidas * volume.incremento();
     }
 }
