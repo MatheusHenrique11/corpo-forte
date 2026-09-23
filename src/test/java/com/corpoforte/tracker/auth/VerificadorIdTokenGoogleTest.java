@@ -30,7 +30,8 @@ class VerificadorIdTokenGoogleTest {
     void idTokenValidoViraDadosLoginDoGoogle() {
         DadosLogin login = verificador.verificar(assinar(claims("sub-1", "fulana@exemplo.com").build()));
 
-        assertThat(login).isEqualTo(new DadosLogin(Provedor.GOOGLE, "sub-1", "fulana@exemplo.com", true, "Nome de sub-1"));
+        assertThat(login).isEqualTo(new DadosLogin(Provedor.GOOGLE, "sub-1", "fulana@exemplo.com", true,
+                "Nome de sub-1", GoogleIdTokenDeTeste.fotoDe("sub-1")));
     }
 
     @Test

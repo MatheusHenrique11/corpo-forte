@@ -5,10 +5,15 @@ package com.corpoforte.tracker.usuario;
  * serializar a entidade exporia peso, altura e idade, e qualquer coluna
  * nova entraria na resposta sem ninguem decidir. Campo novo aqui e'
  * sempre uma escolha explicita.
+ *
+ * onboardingConcluido e' o que o cliente olha logo depois do login pra
+ * decidir entre o cadastro inicial e o app; username vem null ate la.
  */
-public record UsuarioAtualResposta(Long id, String nome, String email) {
+public record UsuarioAtualResposta(Long id, String nome, String email, String username, String fotoUrl,
+                                   boolean onboardingConcluido) {
 
-    static UsuarioAtualResposta de(Usuario usuario) {
-        return new UsuarioAtualResposta(usuario.getId(), usuario.getNome(), usuario.getEmail());
+    public static UsuarioAtualResposta de(Usuario usuario) {
+        return new UsuarioAtualResposta(usuario.getId(), usuario.getNome(), usuario.getEmail(),
+                usuario.getUsername(), usuario.getFotoUrl(), usuario.isOnboardingConcluido());
     }
 }

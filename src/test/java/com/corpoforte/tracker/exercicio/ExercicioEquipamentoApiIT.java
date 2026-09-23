@@ -3,7 +3,6 @@ package com.corpoforte.tracker.exercicio;
 import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.usuario.Usuario;
-import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,14 +29,11 @@ class ExercicioEquipamentoApiIT extends IntegrationTestBase {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private UsuarioAtualService usuarioAtualService;
-
     private Usuario usuario;
 
     @BeforeEach
     void criarUsuario() {
-        usuario = usuarioAtualService.obterUsuarioAtual(
+        usuario = contaComOnboarding(
                 OidcTestUsers.principal("sub-exercicio-api", "Fulana", "exercicio-api@exemplo.com"));
     }
 

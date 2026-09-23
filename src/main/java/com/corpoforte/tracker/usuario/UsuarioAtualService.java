@@ -73,7 +73,15 @@ public class UsuarioAtualService {
     }
 
     public Usuario obterOuCriar(DadosLogin login) {
-        return buscarPorIdentidade(login).orElseGet(() -> reivindicarOuCriarComRetry(login));
+        return buscarPorIdentidade(login)
+                .map(usuario -> atualizarFotoSeMudou(usuario, login))
+                .orElseGet(() -> reivindicarOuCriarComRetry(login));
+    }
+
+    /** A sessao web passa por aqui em toda requisicao: so' grava quando a
+     * foto do provedor de fato mudou. */
+    private Usuario atualizarFotoSeMudou(Usuario usuario, DadosLogin login) {
+        return usuario.atualizarFoto(login.fotoUrl()) ? usuarioRepository.save(usuario) : usuario;
     }
 
     public Usuario salvar(Usuario usuario) {
@@ -116,6 +124,7 @@ public class UsuarioAtualService {
                         NivelTreino.INICIANTE));
 
         usuario.vincularEmail(login.email());
+        usuario.atualizarFoto(login.fotoUrl());
         Usuario salvo = usuarioRepository.save(usuario);
 
         identidadeExternaRepository.save(

@@ -40,8 +40,14 @@ public final class GoogleIdTokenDeTeste {
                 .claim("email", email)
                 .claim("email_verified", true)
                 .claim("name", "Nome de " + sub)
+                .claim("picture", fotoDe(sub))
                 .issueTime(Date.from(agora))
                 .expirationTime(Date.from(agora.plusSeconds(3600)));
+    }
+
+    /** URL de foto que o Google de teste manda pra cada sub. */
+    public static String fotoDe(String sub) {
+        return "https://lh3.googleusercontent.com/a/" + sub;
     }
 
     public static String idToken(String sub, String email) {

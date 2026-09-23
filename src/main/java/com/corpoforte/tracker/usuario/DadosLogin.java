@@ -12,10 +12,11 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
  * Quem constroi este record e' quem ja validou a assinatura do token; o
  * service confia no que recebe.
  */
-public record DadosLogin(Provedor provedor, String sub, String email, boolean emailVerificado, String nome) {
+public record DadosLogin(Provedor provedor, String sub, String email, boolean emailVerificado, String nome,
+                         String fotoUrl) {
 
     public static DadosLogin deGoogle(OidcUser principal) {
         return new DadosLogin(Provedor.GOOGLE, principal.getSubject(), principal.getEmail(),
-                Boolean.TRUE.equals(principal.getEmailVerified()), principal.getFullName());
+                Boolean.TRUE.equals(principal.getEmailVerified()), principal.getFullName(), principal.getPicture());
     }
 }

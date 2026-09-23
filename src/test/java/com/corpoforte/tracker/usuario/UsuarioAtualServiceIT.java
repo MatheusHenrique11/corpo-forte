@@ -108,12 +108,44 @@ class UsuarioAtualServiceIT extends IntegrationTestBase {
     void mesmoLoginGooglePelaSessaoWebEPelaApiResolveAMesmaConta() {
         OidcUser sessaoWeb = OidcTestUsers.principal("sub-duas-portas", "Fulana", "fulana@exemplo.com");
         // o que o VerificadorIdTokenGoogle monta a partir do ID token da API
-        DadosLogin loginPelaApi = new DadosLogin(Provedor.GOOGLE, "sub-duas-portas", "fulana@exemplo.com", true, "Fulana");
+        DadosLogin loginPelaApi = new DadosLogin(Provedor.GOOGLE, "sub-duas-portas", "fulana@exemplo.com", true, "Fulana", null);
 
         Usuario pelaWeb = usuarioAtualService.obterUsuarioAtual(sessaoWeb);
         Usuario pelaApi = usuarioAtualService.obterOuCriar(loginPelaApi);
 
         assertThat(pelaApi.getId()).isEqualTo(pelaWeb.getId());
         assertThat(usuarioRepository.findAll()).hasSize(1);
+    }
+
+    /**
+     * Foto do Google (Fase 12): grava no primeiro login e acompanha a troca
+     * nos seguintes. Login sem foto (cliente sem o escopo "profile") nao
+     * apaga a que ja existe.
+     */
+    @Test
+    void fotoDoProvedorEGravadaEAcompanhaATrocaSemSerApagada() {
+        Usuario primeiroLogin = usuarioAtualService.obterOuCriar(login("https://foto.exemplo/1"));
+        assertThat(primeiroLogin.getFotoUrl()).isEqualTo("https://foto.exemplo/1");
+
+        usuarioAtualService.obterOuCriar(login("https://foto.exemplo/2"));
+        assertThat(usuarioRepository.findById(primeiroLogin.getId()).orElseThrow().getFotoUrl())
+                .isEqualTo("https://foto.exemplo/2");
+
+        usuarioAtualService.obterOuCriar(login(null));
+        assertThat(usuarioRepository.findById(primeiroLogin.getId()).orElseThrow().getFotoUrl())
+                .isEqualTo("https://foto.exemplo/2");
+    }
+
+    /** Conta criada pelo login nasce barrada na API ate o onboarding. */
+    @Test
+    void contaNovaNasceSemUsernameEComOnboardingPendente() {
+        Usuario nova = usuarioAtualService.obterOuCriar(login(null));
+
+        assertThat(nova.isOnboardingConcluido()).isFalse();
+        assertThat(nova.getUsername()).isNull();
+    }
+
+    private static DadosLogin login(String fotoUrl) {
+        return new DadosLogin(Provedor.GOOGLE, "sub-foto", "foto@exemplo.com", true, "Fulana", fotoUrl);
     }
 }

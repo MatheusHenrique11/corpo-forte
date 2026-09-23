@@ -125,12 +125,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   DELETE /api/v1/comentarios/{comentarioId}          RECEBE ID (Fase 11) - autor ou dono do post
  *   PUT  /api/v1/posts/{postId}/curtida                RECEBE ID (Fase 11) - permitido cruzado
  *   DELETE /api/v1/posts/{postId}/curtida              RECEBE ID (Fase 11) - permitido cruzado
+ *   POST /api/v1/onboarding                            sem ID (Fase 12; OnboardingForm sem campo de ID)
+ *   PUT  /api/v1/perfil/publico                        sem ID (Fase 12; so' a propria conta)
+ *   GET  /api/v1/usernames/{username}/disponivel       RECEBE username (Fase 12) - so' diz se existe, e isso ja e' publico
+ *   GET  /api/v1/usuarios/{username}                   RECEBE username (Fase 12) - permitido cruzado, sem dado corporal
+ *   GET  /api/v1/usuarios/{username}/posts             RECEBE username (Fase 12) - permitido cruzado
  *
- * Conclusao: 13 dos 45 endpoints aceitam um ID de recurso vindo do
- * cliente, confirmado nos quatro vetores (não só @PathVariable). Os outros
- * 32 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
+ * Conclusao: 16 dos 50 endpoints aceitam um identificador de recurso
+ * vindo do cliente (id numerico ou, desde a Fase 12, username),
+ * confirmado nos quatro vetores (não só @PathVariable). Os outros
+ * 34 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual, pela sessao ou pelo access
- * token) ou sobre enums de filtro sem significado de ID. Os 8 da API
+ * token) ou sobre enums de filtro sem significado de ID. Os da API
  * repetem as regras dos equivalentes da tela e tem teste proprio abaixo,
  * porque sao outra porta de entrada: uma checagem de dono que so' a
  * rota da tela fizesse passaria despercebida.
@@ -347,8 +353,8 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Test
     void apiMarcarOuDesmarcarItemDeTreinoDeOutroUsuarioDevolve404() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         AvaliacaoFisica avaliacaoDeA = avaliacaoFisicaService.salvar(a.getId(), 10, 15, 40, 20, 30, 50);
         Long itemDeA = treinoDoDiaService.obterOuGerarDoDia(a, avaliacaoDeA).itens().get(0).itemId();
         String rota = "/api/v1/treino-do-dia/itens/" + itemDeA + "/conclusao";
@@ -363,8 +369,8 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Test
     void apiCurtirComentarELerComentariosDePostDeOutroUsuarioEhPermitidoDeProposito() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
         String rota = "/api/v1/posts/" + postDeA.getId();
 
@@ -384,7 +390,7 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Test
     void apiPostInexistenteDevolve404EmTodaRotaComPostId() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
+        Usuario a = contaComOnboarding(usuarioA);
         String rota = "/api/v1/posts/999999";
 
         mockMvc.perform(put(rota + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(a)))
@@ -404,8 +410,8 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Test
     void apiUsuarioBNaoApagaPostNemComentarioDaA() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
         Comentario comentarioDeA = comentarioRepository.saveAndFlush(
                 new Comentario(postDeA.getId(), a.getId(), "Comentário da A", LocalDateTime.now()));
@@ -423,8 +429,8 @@ class EndpointsComIdIT extends IntegrationTestBase {
     /** Acesso cruzado PERMITIDO pela API tambem: dono do post modera. */
     @Test
     void apiAutorDoPostApagaComentarioDeOutroUsuarioDeProposito() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
         Comentario comentarioDeB = comentarioRepository.saveAndFlush(
                 new Comentario(postDeA.getId(), b.getId(), "Comentário do B", LocalDateTime.now()));
@@ -434,5 +440,27 @@ class EndpointsComIdIT extends IntegrationTestBase {
                 .andExpect(status().isNoContent());
 
         assertThat(comentarioRepository.existsById(comentarioDeB.getId())).isFalse();
+    }
+
+    // ---- Perfil publico (Fase 12): ler outra conta pelo username e' a funcao ----
+
+    /**
+     * Acesso cruzado PERMITIDO: B le o perfil publico e os posts de A. O que
+     * precisa ser garantido e' outra coisa: nada de dado corporal de A
+     * passa por ai (o conteudo completo e' conferido em PerfilPublicoApiIT).
+     */
+    @Test
+    void apiPerfilPublicoDeOutroUsuarioEhPermitidoDeProposito() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+
+        mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername()).header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(a.getId()))
+                .andExpect(jsonPath("$.pesoKg").doesNotExist());
+        mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername() + "/posts").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].texto").value("Post da A"));
     }
 }

@@ -73,7 +73,7 @@ public class VerificadorIdTokenGoogle {
         boolean verificado = Boolean.TRUE.equals(emailVerified) || "true".equals(emailVerified);
 
         return new DadosLogin(Provedor.GOOGLE, jwt.getSubject(), jwt.getClaimAsString("email"),
-                verificado, jwt.getClaimAsString("name"));
+                verificado, jwt.getClaimAsString("name"), jwt.getClaimAsString("picture"));
     }
 
     /**

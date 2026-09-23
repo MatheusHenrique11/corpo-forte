@@ -37,6 +37,21 @@ public final class ProblemaApi {
         return conflito("registro-de-peso-pendente", "Registre o peso ao menos uma vez para ver a tendência.");
     }
 
+    /** Conta sem onboarding usando rota que exige onboarding. */
+    public static ErrorResponseException onboardingPendente() {
+        return conflito("onboarding-pendente", "Conclua o cadastro inicial para usar esta função.");
+    }
+
+    public static ErrorResponseException onboardingJaConcluido() {
+        return conflito("onboarding-ja-concluido", "O cadastro inicial desta conta já foi concluído.");
+    }
+
+    /** Username de outra conta (checado antes, ou pego pelo indice unico
+     * numa corrida). */
+    public static ErrorResponseException usernameIndisponivel() {
+        return conflito("username-indisponivel", "Esse nome de usuário já está em uso.");
+    }
+
     private static ErrorResponseException conflito(String tipo, String detalhe) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detalhe);
         problema.setType(URI.create(PREFIXO_TIPO + tipo));

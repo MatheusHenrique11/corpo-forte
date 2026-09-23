@@ -1,5 +1,6 @@
 package com.corpoforte.tracker.usuario;
 
+import com.corpoforte.tracker.api.PermitidoSemOnboarding;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +20,7 @@ public class UsuarioApiController {
 
     @Operation(summary = "Conta dona do access token")
     @GetMapping("/api/v1/me")
+    @PermitidoSemOnboarding
     public UsuarioAtualResposta me(@AuthenticationPrincipal Jwt accessToken) {
         return UsuarioAtualResposta.de(usuarioAtualService.obterUsuarioAtual(accessToken));
     }

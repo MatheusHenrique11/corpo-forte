@@ -91,16 +91,16 @@ class UsuarioAtualServiceTest {
             return invocacao.getArgument(0);
         });
 
-        comTransacao.obterOuCriar(new DadosLogin(Provedor.GOOGLE, "sub-novo", "novo@exemplo.com", true, "Novo"));
+        comTransacao.obterOuCriar(new DadosLogin(Provedor.GOOGLE, "sub-novo", "novo@exemplo.com", true, "Novo", null));
 
         assertThat(gravacoesDentroDaTransacao).containsExactly(true, true);
     }
 
     @Test
     void loginSemNomeDoProvedorCriaContaComOInicioDoEmail() {
-        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-1", "fulana@exemplo.com", true, null)))
+        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-1", "fulana@exemplo.com", true, null, null)))
                 .isEqualTo("fulana");
-        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-2", null, false, " ")))
+        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-2", null, false, " ", null)))
                 .isEqualTo("Atleta");
     }
 
@@ -108,7 +108,7 @@ class UsuarioAtualServiceTest {
     void nomeMaiorQueAColunaECortadoEmVezDeQuebrarOPrimeiroLogin() {
         String nomeLongo = "A".repeat(200);
 
-        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-3", "a@exemplo.com", true, nomeLongo)))
+        assertThat(nomeDaContaCriadaPara(new DadosLogin(Provedor.GOOGLE, "sub-3", "a@exemplo.com", true, nomeLongo, null)))
                 .hasSize(120);
     }
 

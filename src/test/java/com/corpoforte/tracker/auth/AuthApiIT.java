@@ -89,6 +89,7 @@ class AuthApiIT extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Nome de sub-api-login"))
                 .andExpect(jsonPath("$.email").value("api-login@exemplo.com"))
+                .andExpect(jsonPath("$.fotoUrl").value(GoogleIdTokenDeTeste.fotoDe("sub-api-login")))
                 // dado corporal nunca sai na API sem uma decisao explicita
                 .andExpect(jsonPath("$.pesoKg").doesNotExist())
                 .andExpect(jsonPath("$.alturaCm").doesNotExist())

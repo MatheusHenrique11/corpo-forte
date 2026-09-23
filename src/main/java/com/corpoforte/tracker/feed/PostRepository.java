@@ -24,4 +24,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("select p from Post p where p.criadoEm < :criadoEm or (p.criadoEm = :criadoEm and p.id < :id) "
             + "order by p.criadoEm desc, p.id desc")
     List<Post> buscarAnterioresA(@Param("criadoEm") LocalDateTime criadoEm, @Param("id") Long id, Limit limite);
+
+    /** Mesmo keyset, so' os posts de um autor (perfil publico). Indice
+     * (usuario_id, criado_em desc, id desc) da V15. */
+    @Query("select p from Post p where p.usuarioId = :autorId order by p.criadoEm desc, p.id desc")
+    List<Post> buscarMaisRecentesDoAutor(@Param("autorId") Long autorId, Limit limite);
+
+    @Query("select p from Post p where p.usuarioId = :autorId "
+            + "and (p.criadoEm < :criadoEm or (p.criadoEm = :criadoEm and p.id < :id)) "
+            + "order by p.criadoEm desc, p.id desc")
+    List<Post> buscarDoAutorAnterioresA(@Param("autorId") Long autorId, @Param("criadoEm") LocalDateTime criadoEm,
+                                        @Param("id") Long id, Limit limite);
+
+    long countByUsuarioId(Long usuarioId);
 }

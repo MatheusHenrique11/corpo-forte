@@ -3,7 +3,6 @@ package com.corpoforte.tracker.feed;
 import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.usuario.Usuario;
-import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,9 +44,6 @@ class FeedApiIT extends IntegrationTestBase {
     private MockMvc mockMvc;
 
     @Autowired
-    private UsuarioAtualService usuarioAtualService;
-
-    @Autowired
     private PostRepository postRepository;
 
     @Autowired
@@ -60,7 +56,7 @@ class FeedApiIT extends IntegrationTestBase {
 
     @BeforeEach
     void criarUsuario() {
-        autora = usuarioAtualService.obterUsuarioAtual(
+        autora = contaComOnboarding(
                 OidcTestUsers.principal("sub-feed-api", "Autora", "feed-api@exemplo.com"));
     }
 

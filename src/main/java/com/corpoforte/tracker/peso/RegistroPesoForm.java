@@ -9,13 +9,18 @@ import java.time.LocalDate;
 
 public class RegistroPesoForm {
 
+    /** Faixa de peso aceita em todo lugar que recebe peso (registro e
+     * onboarding) - uma constante, pra as duas validacoes nao divergirem. */
+    public static final String PESO_MINIMO_KG = "30.0";
+    public static final String PESO_MAXIMO_KG = "300.0";
+
     @NotNull(message = "Informe a data")
     @PastOrPresent(message = "A data nao pode ser no futuro")
     private LocalDate data = LocalDate.now();
 
     @NotNull(message = "Informe o peso")
-    @DecimalMin(value = "30.0", message = "Peso minimo: 30 kg")
-    @DecimalMax(value = "300.0", message = "Peso maximo: 300 kg")
+    @DecimalMin(value = PESO_MINIMO_KG, message = "Peso minimo: 30 kg")
+    @DecimalMax(value = PESO_MAXIMO_KG, message = "Peso maximo: 300 kg")
     private Double pesoKg;
 
     public LocalDate getData() {

@@ -9,7 +9,7 @@ import java.time.Instant;
 public record ComentarioResposta(Long id, AutorResposta autor, String texto, Instant criadoEm, boolean podeApagar) {
 
     static ComentarioResposta de(ComentarioView comentario) {
-        return new ComentarioResposta(comentario.id(), new AutorResposta(comentario.autorId(), comentario.autorNome()),
+        return new ComentarioResposta(comentario.id(), AutorResposta.de(comentario.autor()),
                 comentario.texto(), Instantes.emUtc(comentario.criadoEm()), comentario.podeApagar());
     }
 }

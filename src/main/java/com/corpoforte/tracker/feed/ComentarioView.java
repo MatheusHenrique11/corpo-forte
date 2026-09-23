@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
  * PostService.apagarComentario aplica, pra tela nunca oferecer um botao
  * que o servidor recusaria.
  */
-public record ComentarioView(Long id, Long autorId, String autorNome, String texto, LocalDateTime criadoEm,
-                             boolean podeApagar) {
+public record ComentarioView(Long id, AutorView autor, String texto, LocalDateTime criadoEm, boolean podeApagar) {
+
+    /** O template da tela le o nome direto do comentario. */
+    public String autorNome() {
+        return autor.nome();
+    }
 }

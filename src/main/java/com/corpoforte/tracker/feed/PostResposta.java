@@ -15,8 +15,8 @@ public record PostResposta(Long id, AutorResposta autor, String texto, Instant c
                            boolean curtidoPorMim, boolean podeApagar, long totalComentarios,
                            List<ComentarioResposta> comentariosRecentes) {
 
-    static PostResposta de(PostView post) {
-        return new PostResposta(post.id(), new AutorResposta(post.autorId(), post.autorNome()), post.texto(),
+    public static PostResposta de(PostView post) {
+        return new PostResposta(post.id(), AutorResposta.de(post.autor()), post.texto(),
                 Instantes.emUtc(post.criadoEm()), post.curtidas(), post.curtidoPorMim(), post.podeApagar(),
                 post.totalComentarios(), post.comentarios().stream().map(ComentarioResposta::de).toList());
     }

@@ -4,7 +4,6 @@ import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.usuario.Usuario;
-import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,16 +34,13 @@ class TreinoDoDiaApiIT extends IntegrationTestBase {
     private MockMvc mockMvc;
 
     @Autowired
-    private UsuarioAtualService usuarioAtualService;
-
-    @Autowired
     private AvaliacaoFisicaService avaliacaoFisicaService;
 
     private Usuario usuario;
 
     @BeforeEach
     void criarUsuario() {
-        usuario = usuarioAtualService.obterUsuarioAtual(
+        usuario = contaComOnboarding(
                 OidcTestUsers.principal("sub-treino-api", "Fulana", "treino-api@exemplo.com"));
     }
 

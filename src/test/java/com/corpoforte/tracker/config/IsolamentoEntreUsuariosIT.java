@@ -77,8 +77,8 @@ class IsolamentoEntreUsuariosIT extends IntegrationTestBase {
 
     @Test
     void apiPesoDeUmUsuarioNaoApareceParaOOutro() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         registroPesoService.registrar(a, LocalDate.of(2026, 5, 1), 77.0);
 
         mockMvc.perform(get("/api/v1/pesos").header(HttpHeaders.AUTHORIZATION, bearer(b)))
@@ -92,8 +92,8 @@ class IsolamentoEntreUsuariosIT extends IntegrationTestBase {
 
     @Test
     void apiAvaliacaoETreinoDeUmUsuarioNaoAparecemParaOOutro() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         avaliacaoFisicaService.salvar(a.getId(), 10, 10, 10, 10, 10, 10);
 
         mockMvc.perform(get("/api/v1/avaliacoes").header(HttpHeaders.AUTHORIZATION, bearer(b)))
@@ -110,8 +110,8 @@ class IsolamentoEntreUsuariosIT extends IntegrationTestBase {
      */
     @Test
     void apiCursorForjadoComAPosicaoDeOutraContaNaoMostraNadaDela() throws Exception {
-        Usuario a = usuarioAtualService.obterUsuarioAtual(usuarioA);
-        Usuario b = usuarioAtualService.obterUsuarioAtual(usuarioB);
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
         registroPesoService.registrar(a, LocalDate.of(2026, 5, 1), 77.0);
         String cursorForjado = Cursor.apos(LocalDate.of(2026, 5, 2), 0).codificar();
 

@@ -4,10 +4,13 @@ import com.corpoforte.tracker.auth.EmissorTokens;
 import com.corpoforte.tracker.auth.GoogleDeTesteConfig;
 import com.corpoforte.tracker.auth.GoogleIdTokenDeTeste;
 import com.corpoforte.tracker.usuario.Usuario;
+import com.corpoforte.tracker.usuario.UsuarioAtualService;
+import com.corpoforte.tracker.usuario.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -65,6 +68,29 @@ public abstract class IntegrationTestBase {
 
     @Autowired
     private EmissorTokens emissorTokens;
+
+    @Autowired
+    private UsuarioAtualService usuarioAtualServiceDaBase;
+
+    @Autowired
+    private UsuarioRepository usuarioRepositoryDaBase;
+
+    /**
+     * Conta pronta pra usar a API: primeiro login + onboarding concluido
+     * (Fase 12), sem mexer nos dados do perfil. Username derivado do sub,
+     * no formato permitido. Conta so' com login (obterUsuarioAtual) recebe
+     * onboarding-pendente em quase toda rota da API.
+     */
+    protected Usuario contaComOnboarding(OidcUser principal) {
+        Usuario usuario = usuarioAtualServiceDaBase.obterUsuarioAtual(principal);
+        if (usuario.isOnboardingConcluido()) {
+            return usuario;
+        }
+        String username = principal.getSubject().toLowerCase().replaceAll("[^a-z0-9_.]", "_");
+        usuario.concluirOnboarding(usuario.getNome(), username.substring(0, Math.min(username.length(), 30)),
+                usuario.getAlturaCm(), usuario.getIdade(), usuario.getObjetivo(), usuario.getNivel());
+        return usuarioRepositoryDaBase.save(usuario);
+    }
 
     /** Valor do cabecalho Authorization com um access token valido pro
      * usuario - o que um cliente da API manda em toda requisicao. */

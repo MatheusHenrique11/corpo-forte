@@ -91,9 +91,21 @@ conta do access token:
 | Equipamentos e catálogo | `GET`/`PUT /api/v1/equipamentos`, `GET /api/v1/exercicios` |
 | Treino do dia | `GET /api/v1/treino-do-dia`, `PUT`/`DELETE /api/v1/treino-do-dia/itens/{id}/conclusao` |
 | Feed | `GET /api/v1/feed/descobrir`, `POST /api/v1/posts`, `DELETE /api/v1/posts/{id}`, `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
+| Onboarding | `POST /api/v1/onboarding`, `GET /api/v1/usernames/{username}/disponivel` |
+| Perfil público | `GET /api/v1/usuarios/{username}`, `GET /api/v1/usuarios/{username}/posts`, `PUT /api/v1/perfil/publico` (username e bio) |
 
 Convenções:
 
+- **Conta nova começa pelo onboarding.** Enquanto ele não é feito, toda
+  rota da API responde `409` com `type`
+  `urn:corpo-forte:problema:onboarding-pendente`, menos `/me`, o próprio
+  onboarding e a checagem de username. O cliente olha
+  `onboardingConcluido` no `/me` logo depois do login. O onboarding pede
+  nome, username, altura, idade, objetivo, nível e peso; o peso vira o
+  primeiro registro de peso.
+- **Username**: 3 a 30 caracteres, só letras minúsculas, números, `_` e
+  `.`; único sem diferenciar maiúsculas; alguns nomes do sistema são
+  reservados.
 - **Toda lista** vem como `{"itens": [...], "proximoCursor": "..."}`. Pra
   próxima página, repetir a chamada com `?cursor=<proximoCursor>`;
   `proximoCursor` nulo quer dizer que acabou. O cursor marca a posição do
@@ -107,9 +119,11 @@ Convenções:
 - **Pré-requisito faltando** responde `409` com um `type` estável pro
   cliente decidir o que mostrar: `urn:corpo-forte:problema:avaliacao-pendente`
   (treino sem avaliação), `...:avaliacoes-insuficientes` (comparação com
-  menos de duas) e `...:registro-de-peso-pendente` (tendência sem pesagem).
+  menos de duas) e `...:registro-de-peso-pendente` (tendência sem pesagem). Username de
+  outra conta responde `...:username-indisponivel`.
 - Dado corporal (peso, altura, idade, avaliação) só aparece nas rotas da
-  própria conta. No feed, o autor é só `{id, nome}`.
+  própria conta. No feed e no perfil público aparece só a identidade
+  pública: nome, username, foto (a do Google) e bio.
 
 Variáveis de ambiente (todas opcionais pra rodar local, nunca commitadas):
 
@@ -202,3 +216,9 @@ arquivo decide em qual dos dois ele entra.
     como a sincronização do peso, desceram pro service). Listas paginadas
     por cursor, `DELETE` de verdade pra apagar, curtir e concluir item
     idempotentes. ✅
+12. **Onboarding e perfil público** — conta nova deixa de usar dados
+    inventados: o cadastro inicial pede os dados reais e um `@username`
+    (o peso vira o primeiro registro de peso), e a API fica bloqueada até
+    ele ser feito. Perfil público por username com foto do Google, bio,
+    contagem e posts paginados, sem nenhum dado corporal. Contas que já
+    existiam ganharam um username gerado. ✅

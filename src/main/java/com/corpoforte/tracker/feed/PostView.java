@@ -8,7 +8,12 @@ import java.util.List;
  * de QUEM esta olhando - o resto do feed e' igual pra todo mundo (por isso
  * PostService.listarFeed recebe o usuario atual desde a Fase 7b).
  */
-public record PostView(Long id, Long autorId, String autorNome, String texto, LocalDateTime criadoEm,
+public record PostView(Long id, AutorView autor, String texto, LocalDateTime criadoEm,
                        long curtidas, boolean curtidoPorMim, boolean podeApagar,
                        long totalComentarios, List<ComentarioView> comentarios) {
+
+    /** O template da tela le o nome direto do post. */
+    public String autorNome() {
+        return autor.nome();
+    }
 }

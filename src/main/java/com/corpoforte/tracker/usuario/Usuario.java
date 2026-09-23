@@ -26,6 +26,8 @@ import java.util.Set;
 @Table(name = "usuario")
 public class Usuario {
 
+    private static final int TAMANHO_MAXIMO_FOTO_URL = 500;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -35,6 +37,22 @@ public class Usuario {
 
     @Column(unique = true)
     private String email;
+
+    /** Identidade publica (Fase 12). Unico sem diferenciar maiusculas
+     * (indice em lower(username), V15); null ate o onboarding. */
+    private String username;
+
+    private String bio;
+
+    /** Foto do provedor de login (claim "picture" do Google). */
+    @Column(name = "foto_url")
+    private String fotoUrl;
+
+    /** Enquanto false, a API responde onboarding-pendente em quase tudo
+     * (OnboardingPendenteInterceptor). Conta nova nasce com dado inventado
+     * (100 kg, 178 cm...), e o onboarding e' o que troca isso por dado real. */
+    @Column(name = "onboarding_concluido", nullable = false)
+    private boolean onboardingConcluido = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -133,6 +151,39 @@ public class Usuario {
         this.email = email;
     }
 
+    /**
+     * Onboarding (Fase 12): troca os dados inventados da conta nova pelos
+     * reais e escolhe o username. O peso nao entra aqui: vira o primeiro
+     * registro de peso (OnboardingService), a fonte unica desde a Fase 3.
+     */
+    public void concluirOnboarding(String nome, String username, double alturaCm, int idade,
+                                   ObjetivoTreino objetivo, NivelTreino nivel) {
+        atualizarPerfil(nome, alturaCm, idade, objetivo, nivel);
+        this.username = username;
+        this.onboardingConcluido = true;
+    }
+
+    public void atualizarPerfilPublico(String username, String bio) {
+        this.username = username;
+        this.bio = bio;
+    }
+
+    /**
+     * Foto do provedor, atualizada a cada login - a pessoa troca a foto no
+     * Google e a daqui acompanha. Login sem foto (cliente que nao pediu o
+     * escopo "profile") nao apaga a que ja existe. Devolve se mudou, pra
+     * quem chama so' gravar quando precisa.
+     */
+    public boolean atualizarFoto(String fotoUrl) {
+        // acima do tamanho da coluna: fica a foto anterior em vez de o
+        // login inteiro falhar por causa de um campo cosmetico
+        if (fotoUrl == null || fotoUrl.length() > TAMANHO_MAXIMO_FOTO_URL || fotoUrl.equals(this.fotoUrl)) {
+            return false;
+        }
+        this.fotoUrl = fotoUrl;
+        return true;
+    }
+
     public Long getId() {
         return id;
     }
@@ -143,6 +194,22 @@ public class Usuario {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public String getFotoUrl() {
+        return fotoUrl;
+    }
+
+    public boolean isOnboardingConcluido() {
+        return onboardingConcluido;
     }
 
     public Role getRole() {

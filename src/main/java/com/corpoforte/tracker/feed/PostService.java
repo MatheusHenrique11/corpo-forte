@@ -194,6 +194,22 @@ public class PostService {
                 .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
     }
 
+    /** Posts de um autor, no mesmo formato e com o mesmo cursor do feed
+     * (perfil publico). */
+    public Pagina<PostView> paginaDoAutor(Long autorId, Long usuarioIdAtual, Cursor cursor, int tamanho) {
+        Limit limite = Limit.of(tamanho + 1);
+        List<Post> buscados = cursor == null
+                ? postRepository.buscarMaisRecentesDoAutor(autorId, limite)
+                : postRepository.buscarDoAutorAnterioresA(autorId, cursor.comoInstante(), cursor.id(), limite);
+
+        return Pagina.deBuscaComUmAMais(buscados, tamanho, post -> Cursor.apos(post.getCriadoEm(), post.getId()))
+                .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
+    }
+
+    public long contarDoAutor(Long autorId) {
+        return postRepository.countByUsuarioId(autorId);
+    }
+
     /** Um post no mesmo formato do feed paginado (resposta de quem acabou
      * de criar). */
     public PostView visaoDoPost(Post post, Long usuarioIdAtual) {
@@ -214,9 +230,9 @@ public class PostService {
         return Pagina.deBuscaComUmAMais(buscados, tamanho,
                         comentario -> Cursor.apos(comentario.getCriadoEm(), comentario.getId()))
                 .mapearTodos(comentarios -> {
-                    Map<Long, String> nomes = nomesDosAutores(List.of(), comentarios);
+                    Map<Long, AutorView> autores = autoresDe(List.of(), comentarios);
                     return comentarios.stream()
-                            .map(comentario -> paraView(comentario, nomes, post.getUsuarioId(), usuarioIdAtual))
+                            .map(comentario -> paraView(comentario, autores, post.getUsuarioId(), usuarioIdAtual))
                             .toList();
                 });
     }
@@ -227,7 +243,7 @@ public class PostService {
         Long autorDoPostId = postRepository.findById(comentario.getPostId())
                 .map(Post::getUsuarioId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return paraView(comentario, nomesDosAutores(List.of(), List.of(comentario)), autorDoPostId, usuarioIdAtual);
+        return paraView(comentario, autoresDe(List.of(), List.of(comentario)), autorDoPostId, usuarioIdAtual);
     }
 
     private List<PostView> montarComComentariosRecentes(List<Post> posts, Long usuarioIdAtual) {
@@ -258,13 +274,13 @@ public class PostService {
     private List<PostView> montar(List<Post> posts, List<Comentario> comentarios,
                                   Map<Long, Long> totalDeComentarios, Long usuarioIdAtual) {
         List<Long> postIds = idsDe(posts);
-        Map<Long, String> nomePorUsuarioId = nomesDosAutores(posts, comentarios);
+        Map<Long, AutorView> autores = autoresDe(posts, comentarios);
         Map<Long, Long> autorPorPostId = posts.stream()
                 .collect(Collectors.toMap(Post::getId, Post::getUsuarioId));
 
         Map<Long, List<ComentarioView>> comentariosPorPost = comentarios.stream()
                 .collect(Collectors.groupingBy(Comentario::getPostId, LinkedHashMap::new,
-                        Collectors.mapping(comentario -> paraView(comentario, nomePorUsuarioId,
+                        Collectors.mapping(comentario -> paraView(comentario, autores,
                                         autorPorPostId.get(comentario.getPostId()), usuarioIdAtual),
                                 Collectors.toList())));
 
@@ -276,7 +292,7 @@ public class PostService {
                 .collect(Collectors.toSet());
 
         return posts.stream()
-                .map(post -> new PostView(post.getId(), post.getUsuarioId(), nomePorUsuarioId.get(post.getUsuarioId()),
+                .map(post -> new PostView(post.getId(), autores.get(post.getUsuarioId()),
                         post.getTexto(), post.getCriadoEm(),
                         curtidasPorPost.getOrDefault(post.getId(), 0L),
                         curtidosPorMim.contains(post.getId()),
@@ -286,10 +302,10 @@ public class PostService {
                 .toList();
     }
 
-    private static ComentarioView paraView(Comentario comentario, Map<Long, String> nomePorUsuarioId,
+    private static ComentarioView paraView(Comentario comentario, Map<Long, AutorView> autores,
                                            Long autorDoPostId, Long usuarioIdAtual) {
-        return new ComentarioView(comentario.getId(), comentario.getUsuarioId(),
-                nomePorUsuarioId.get(comentario.getUsuarioId()), comentario.getTexto(), comentario.getCriadoEm(),
+        return new ComentarioView(comentario.getId(), autores.get(comentario.getUsuarioId()),
+                comentario.getTexto(), comentario.getCriadoEm(),
                 podeApagarComentario(comentario, autorDoPostId, usuarioIdAtual));
     }
 
@@ -300,13 +316,13 @@ public class PostService {
     /** Autor de post e autor de comentario saem da mesma busca: quem
      * comentou no feed quase sempre tambem aparece como autor de algum
      * post, e duas buscas separadas trariam as mesmas linhas duas vezes. */
-    private Map<Long, String> nomesDosAutores(List<Post> posts, List<Comentario> comentarios) {
+    private Map<Long, AutorView> autoresDe(List<Post> posts, List<Comentario> comentarios) {
         Set<Long> autorIds = new HashSet<>();
         posts.forEach(post -> autorIds.add(post.getUsuarioId()));
         comentarios.forEach(comentario -> autorIds.add(comentario.getUsuarioId()));
 
         return usuarioRepository.findAllById(autorIds).stream()
-                .collect(Collectors.toMap(Usuario::getId, Usuario::getNome));
+                .collect(Collectors.toMap(Usuario::getId, AutorView::de));
     }
 
     /**
