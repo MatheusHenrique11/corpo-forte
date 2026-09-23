@@ -194,6 +194,25 @@ public class PostService {
                 .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
     }
 
+    /** Feed "Seguindo": os posts do proprio usuario e de quem ele segue. */
+    public Pagina<PostView> paginaSeguindo(Long usuarioIdAtual, Cursor cursor, int tamanho) {
+        Limit limite = Limit.of(tamanho + 1);
+        List<Post> buscados = cursor == null
+                ? postRepository.buscarSeguindo(usuarioIdAtual, limite)
+                : postRepository.buscarSeguindoAnterioresA(usuarioIdAtual, cursor.comoInstante(), cursor.id(), limite);
+
+        return Pagina.deBuscaComUmAMais(buscados, tamanho, post -> Cursor.apos(post.getCriadoEm(), post.getId()))
+                .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
+    }
+
+    /** Pagina de um post (pra onde um link ou aviso aponta): o mesmo formato
+     * do feed; o resto dos comentarios vem de paginaDeComentarios. */
+    public PostView visaoDoPost(Long postId, Long usuarioIdAtual) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return visaoDoPost(post, usuarioIdAtual);
+    }
+
     /** Posts de um autor, no mesmo formato e com o mesmo cursor do feed
      * (perfil publico). */
     public Pagina<PostView> paginaDoAutor(Long autorId, Long usuarioIdAtual, Cursor cursor, int tamanho) {

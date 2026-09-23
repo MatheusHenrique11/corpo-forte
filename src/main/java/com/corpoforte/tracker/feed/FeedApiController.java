@@ -43,13 +43,31 @@ public class FeedApiController {
         this.postService = postService;
     }
 
-    @Operation(summary = "Feed global, posts mais recentes primeiro")
+    @Operation(summary = "Feed global (Descobrir), posts mais recentes primeiro")
     @GetMapping("/api/v1/feed/descobrir")
     public Pagina<PostResposta> descobrir(@RequestParam(required = false) String cursor,
                                           @AuthenticationPrincipal Jwt accessToken) {
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
         return postService.paginaDoFeed(usuario.getId(), Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
                 .mapear(PostResposta::de);
+    }
+
+    @Operation(summary = "Feed de quem o usuário segue, com os próprios posts, mais recentes primeiro")
+    @GetMapping("/api/v1/feed/seguindo")
+    public Pagina<PostResposta> seguindo(@RequestParam(required = false) String cursor,
+                                         @AuthenticationPrincipal Jwt accessToken) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
+        return postService.paginaSeguindo(usuario.getId(), Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
+                .mapear(PostResposta::de);
+    }
+
+    @Operation(summary = "Um post, no formato do feed",
+            description = "Traz os comentários mais recentes e o total; os demais vêm de "
+                    + "GET /api/v1/posts/{postId}/comentarios.")
+    @GetMapping("/api/v1/posts/{postId}")
+    public PostResposta post(@PathVariable Long postId, @AuthenticationPrincipal Jwt accessToken) {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
+        return PostResposta.de(postService.visaoDoPost(postId, usuario.getId()));
     }
 
     @Operation(summary = "Publica um post de texto")

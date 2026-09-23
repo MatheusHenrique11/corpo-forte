@@ -37,4 +37,23 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                                         @Param("id") Long id, Limit limite);
 
     long countByUsuarioId(Long usuarioId);
+
+    /**
+     * Feed "Seguindo": os meus posts e os de quem eu sigo, no mesmo keyset
+     * do feed global. Subquery em vez de buscar os ids seguidos antes: quem
+     * segue milhares de contas geraria um "in (...)" com milhares de
+     * parametros. E' a unica consulta do feed que conhece o Seguimento (do
+     * pacote social); o social nao conhece post.
+     */
+    @Query("select p from Post p where (p.usuarioId = :eu or p.usuarioId in "
+            + "(select s.seguidoId from Seguimento s where s.seguidorId = :eu)) "
+            + "order by p.criadoEm desc, p.id desc")
+    List<Post> buscarSeguindo(@Param("eu") Long usuarioId, Limit limite);
+
+    @Query("select p from Post p where (p.usuarioId = :eu or p.usuarioId in "
+            + "(select s.seguidoId from Seguimento s where s.seguidorId = :eu)) "
+            + "and (p.criadoEm < :criadoEm or (p.criadoEm = :criadoEm and p.id < :id)) "
+            + "order by p.criadoEm desc, p.id desc")
+    List<Post> buscarSeguindoAnterioresA(@Param("eu") Long usuarioId, @Param("criadoEm") LocalDateTime criadoEm,
+                                         @Param("id") Long id, Limit limite);
 }

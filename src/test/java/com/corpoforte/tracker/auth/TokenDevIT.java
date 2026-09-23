@@ -72,6 +72,8 @@ class TokenDevIT extends IntegrationTestBase {
                 .andExpect(jsonPath("$.paths['/api/v1/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/feed/descobrir'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/onboarding'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/feed/seguindo'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/usuarios/{username}/seguimento'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/usuarios/{username}'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/posts/{postId}/curtida'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/treino-do-dia/itens/{itemId}/conclusao'].delete").exists())

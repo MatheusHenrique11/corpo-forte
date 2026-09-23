@@ -130,11 +130,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   GET  /api/v1/usernames/{username}/disponivel       RECEBE username (Fase 12) - so' diz se existe, e isso ja e' publico
  *   GET  /api/v1/usuarios/{username}                   RECEBE username (Fase 12) - permitido cruzado, sem dado corporal
  *   GET  /api/v1/usuarios/{username}/posts             RECEBE username (Fase 12) - permitido cruzado
+ *   GET  /api/v1/feed/seguindo                         sem ID (Fase 13; cursor e' posicao)
+ *   GET  /api/v1/usuarios?busca=                       sem ID (Fase 13; texto de busca, so' contas com perfil publico)
+ *   GET  /api/v1/posts/{postId}                        RECEBE ID (Fase 13) - permitido cruzado
+ *   PUT  /api/v1/usuarios/{username}/seguimento        RECEBE username (Fase 13) - permitido cruzado (seguir e' a funcao)
+ *   DELETE /api/v1/usuarios/{username}/seguimento      RECEBE username (Fase 13) - so' desfaz o seguir do proprio token
+ *   GET  /api/v1/usuarios/{username}/seguidores        RECEBE username (Fase 13) - permitido cruzado
+ *   GET  /api/v1/usuarios/{username}/seguindo          RECEBE username (Fase 13) - permitido cruzado
  *
- * Conclusao: 16 dos 50 endpoints aceitam um identificador de recurso
+ * Conclusao: 21 dos 57 endpoints aceitam um identificador de recurso
  * vindo do cliente (id numerico ou, desde a Fase 12, username),
  * confirmado nos quatro vetores (não só @PathVariable). Os outros
- * 34 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
+ * 36 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual, pela sessao ou pelo access
  * token) ou sobre enums de filtro sem significado de ID. Os da API
  * repetem as regras dos equivalentes da tela e tem teste proprio abaixo,
@@ -462,5 +469,42 @@ class EndpointsComIdIT extends IntegrationTestBase {
         mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername() + "/posts").header(HttpHeaders.AUTHORIZATION, bearer(b)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itens[0].texto").value("Post da A"));
+    }
+
+    // ---- Seguir e pagina do post (Fase 13) ----
+
+    /**
+     * Acesso cruzado PERMITIDO: seguir a conta de outra pessoa e' a funcao.
+     * O que precisa ser garantido e' que o seguidor e' sempre quem esta no
+     * token - B segue A, e A continua sem seguir ninguem.
+     */
+    @Test
+    void apiSeguirOutraContaEhPermitidoDeProposito() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+
+        mockMvc.perform(put("/api/v1/usuarios/" + a.getUsername() + "/seguimento")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername() + "/seguidores")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(jsonPath("$.itens[0].id").value(b.getId()));
+        mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername() + "/seguindo")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(jsonPath("$.itens").isEmpty());
+    }
+
+    @Test
+    void apiPaginaDoPostDeOutroUsuarioEhPermitidaEInexistenteDa404() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+
+        mockMvc.perform(get("/api/v1/posts/" + postDeA.getId()).header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.podeApagar").value(false));
+        mockMvc.perform(get("/api/v1/posts/999999").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
     }
 }

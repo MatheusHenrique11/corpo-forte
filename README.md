@@ -90,9 +90,10 @@ conta do access token:
 | Peso | `GET`/`POST /api/v1/pesos`, `GET /api/v1/pesos/tendencia` |
 | Equipamentos e catálogo | `GET`/`PUT /api/v1/equipamentos`, `GET /api/v1/exercicios` |
 | Treino do dia | `GET /api/v1/treino-do-dia`, `PUT`/`DELETE /api/v1/treino-do-dia/itens/{id}/conclusao` |
-| Feed | `GET /api/v1/feed/descobrir`, `POST /api/v1/posts`, `DELETE /api/v1/posts/{id}`, `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
+| Feed | `GET /api/v1/feed/seguindo`, `GET /api/v1/feed/descobrir`, `GET`/`DELETE /api/v1/posts/{id}`, `POST /api/v1/posts`, `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
 | Onboarding | `POST /api/v1/onboarding`, `GET /api/v1/usernames/{username}/disponivel` |
-| Perfil público | `GET /api/v1/usuarios/{username}`, `GET /api/v1/usuarios/{username}/posts`, `PUT /api/v1/perfil/publico` (username e bio) |
+| Perfil público | `GET /api/v1/usuarios/{username}`, `GET /api/v1/usuarios/{username}/posts`, `PUT /api/v1/perfil/publico` (username e bio), `GET /api/v1/usuarios?busca=` |
+| Seguir | `PUT`/`DELETE /api/v1/usuarios/{username}/seguimento`, `GET /api/v1/usuarios/{username}/seguidores`, `GET /api/v1/usuarios/{username}/seguindo` |
 
 Convenções:
 
@@ -112,7 +113,7 @@ Convenções:
   último item (não um número de página), então post novo chegando entre
   uma página e outra não faz nada repetir nem sumir.
 - **Marcar e desmarcar são idempotentes**: `PUT` marca (curtida, item
-  concluído), `DELETE` desmarca. Repetir a mesma requisição não desfaz
+  concluído, seguir), `DELETE` desmarca. Repetir a mesma requisição não desfaz
   nada.
 - **Horários** saem em UTC (`2026-09-23T18:54:18.053176Z`); datas de
   calendário (dia do peso, da avaliação) saem como `2026-09-23`.
@@ -222,3 +223,7 @@ arquivo decide em qual dos dois ele entra.
     ele ser feito. Perfil público por username com foto do Google, bio,
     contagem e posts paginados, sem nenhum dado corporal. Contas que já
     existiam ganharam um username gerado. ✅
+13. **Seguir** — seguir é de mão única e sem pedido de aprovação; listas
+    de seguidores e de quem a conta segue; feed "Seguindo" (os próprios
+    posts e os de quem a pessoa segue) ao lado do "Descobrir" (global);
+    página do post; busca de conta pelo começo do username ou do nome. ✅

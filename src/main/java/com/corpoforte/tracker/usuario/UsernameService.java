@@ -2,8 +2,10 @@ package com.corpoforte.tracker.usuario;
 
 import com.corpoforte.tracker.api.ProblemaApi;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,6 +34,20 @@ public class UsernameService {
 
     public Optional<Usuario> buscarPorUsername(String username) {
         return usuarioRepository.findPorUsername(username);
+    }
+
+    /**
+     * Contas cujo username ou nome comeca com o texto buscado. Os curingas
+     * do like (% e _) e o caractere de escape viram literais: buscar
+     * "joao_" nao pode achar "joaox".
+     */
+    public List<Usuario> buscarPorPrefixo(String busca, int limite) {
+        String texto = busca == null ? "" : busca.trim().toLowerCase();
+        if (texto.isEmpty()) {
+            return List.of();
+        }
+        String escapado = texto.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        return usuarioRepository.buscarPorPrefixo(escapado + "%", Limit.of(limite));
     }
 
     /** 409 se o nome ja e' de outra conta. Chamado ANTES de mexer na conta:
