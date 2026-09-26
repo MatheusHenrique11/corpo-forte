@@ -173,7 +173,8 @@ public class TreinoDoDiaService {
                 .map(item -> {
                     Exercicio exercicio = catalogoPorId.get(item.getExercicioId());
                     return new TreinoItemView(item.getId(), exercicio.getMovimento(), exercicio.getId(),
-                            exercicio.getNome(), item.getSeries(), item.getRepeticoes(), item.isConcluido());
+                            exercicio.getNome(), exercicio.getMedida(), item.getSeries(), item.getRepeticoes(),
+                            item.isConcluido());
                 })
                 .sorted(Comparator.comparingInt(view -> view.movimento().ordinal()))
                 .toList();

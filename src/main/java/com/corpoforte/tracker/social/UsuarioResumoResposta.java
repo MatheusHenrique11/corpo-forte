@@ -4,6 +4,7 @@ import com.corpoforte.tracker.usuario.Usuario;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Uma conta numa lista (seguidores, seguindo, busca): so' a identidade
@@ -12,10 +13,13 @@ import java.util.Set;
  */
 public record UsuarioResumoResposta(Long id, String username, String nome, String fotoUrl, boolean seguidoPorMim) {
 
-    public static List<UsuarioResumoResposta> de(List<Usuario> usuarios, Set<Long> seguidosPorQuemVe) {
+    /** fotoDe: FotoDePerfil::url, chamado so' pras contas que ja estao na
+     * lista - ou seja, depois da regra de bloqueio. */
+    public static List<UsuarioResumoResposta> de(List<Usuario> usuarios, Set<Long> seguidosPorQuemVe,
+                                                 Function<Usuario, String> fotoDe) {
         return usuarios.stream()
                 .map(usuario -> new UsuarioResumoResposta(usuario.getId(), usuario.getUsername(), usuario.getNome(),
-                        usuario.getFotoUrl(), seguidosPorQuemVe.contains(usuario.getId())))
+                        fotoDe.apply(usuario), seguidosPorQuemVe.contains(usuario.getId())))
                 .toList();
     }
 }

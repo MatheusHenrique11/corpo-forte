@@ -90,10 +90,12 @@ conta do access token:
 | Peso | `GET`/`POST /api/v1/pesos`, `GET /api/v1/pesos/tendencia` |
 | Equipamentos e catálogo | `GET`/`PUT /api/v1/equipamentos`, `GET /api/v1/exercicios` |
 | Treino do dia | `GET /api/v1/treino-do-dia`, `PUT`/`DELETE /api/v1/treino-do-dia/itens/{id}/conclusao` |
-| Feed | `GET /api/v1/feed/seguindo`, `GET /api/v1/feed/descobrir`, `GET`/`DELETE /api/v1/posts/{id}`, `POST /api/v1/posts`, `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
+| Feed | `GET /api/v1/feed/seguindo`, `GET /api/v1/feed/descobrir`, `GET`/`DELETE /api/v1/posts/{id}`, `POST /api/v1/posts` (JSON, ou multipart com até 4 fotos), `GET`/`POST /api/v1/posts/{id}/comentarios`, `DELETE /api/v1/comentarios/{id}`, `PUT`/`DELETE /api/v1/posts/{id}/curtida` |
 | Onboarding | `POST /api/v1/onboarding`, `GET /api/v1/usernames/{username}/disponivel` |
-| Perfil público | `GET /api/v1/usuarios/{username}`, `GET /api/v1/usuarios/{username}/posts`, `PUT /api/v1/perfil/publico` (username e bio), `GET /api/v1/usuarios?busca=` |
+| Perfil público | `GET /api/v1/usuarios/{username}`, `GET /api/v1/usuarios/{username}/posts`, `PUT /api/v1/perfil/publico` (username e bio), `PUT`/`DELETE /api/v1/perfil/foto` (multipart), `GET /api/v1/usuarios?busca=` |
 | Seguir | `PUT`/`DELETE /api/v1/usuarios/{username}/seguimento`, `GET /api/v1/usuarios/{username}/seguidores`, `GET /api/v1/usuarios/{username}/seguindo` |
+| Privacidade e bloqueio | `GET`/`PUT /api/v1/privacidade` (visibilidade padrão dos posts), `PUT`/`DELETE /api/v1/usuarios/{username}/bloqueio`, `GET /api/v1/bloqueios` |
+| Diário de treino | `POST /api/v1/treino-do-dia/finalizar`, `GET`/`POST /api/v1/atividades` (treino livre), `GET`/`DELETE /api/v1/atividades/{id}` |
 
 Convenções:
 
@@ -113,15 +115,38 @@ Convenções:
   último item (não um número de página), então post novo chegando entre
   uma página e outra não faz nada repetir nem sumir.
 - **Marcar e desmarcar são idempotentes**: `PUT` marca (curtida, item
-  concluído, seguir), `DELETE` desmarca. Repetir a mesma requisição não desfaz
-  nada.
+  concluído, seguir, bloqueio), `DELETE` desmarca. Repetir a mesma
+  requisição não desfaz nada.
+- **Visibilidade de post**: `PUBLICO`, `SEGUIDORES` ou `SOMENTE_EU`,
+  escolhida ao publicar (sem escolher, vale o padrão da conta). Bloqueio
+  vale nos dois sentidos: nenhuma das duas contas vê o perfil, os posts
+  nem os comentários da outra. O que alguém não pode ver responde `404`,
+  igual a algo que não existe, em todas as rotas — feed, perfil, página
+  do post, curtir e comentar.
 - **Horários** saem em UTC (`2026-09-23T18:54:18.053176Z`); datas de
-  calendário (dia do peso, da avaliação) saem como `2026-09-23`.
+  calendário (dia do peso, da avaliação, do treino) saem como `2026-09-23`.
 - **Pré-requisito faltando** responde `409` com um `type` estável pro
   cliente decidir o que mostrar: `urn:corpo-forte:problema:avaliacao-pendente`
   (treino sem avaliação), `...:avaliacoes-insuficientes` (comparação com
-  menos de duas) e `...:registro-de-peso-pendente` (tendência sem pesagem). Username de
-  outra conta responde `...:username-indisponivel`.
+  menos de duas), `...:registro-de-peso-pendente` (tendência sem pesagem),
+  `...:treino-sem-itens-concluidos` (finalizar o treino sem nenhum item
+  marcado) e `...:treino-ja-finalizado` (o treino do dia vira uma
+  atividade só). Username de outra conta responde
+  `...:username-indisponivel`.
+- **Diário de treino**: cada atividade guarda as séries na ordem em que
+  foram feitas (`"series": [10, 10, 8]`). Cada exercício do catálogo tem
+  uma `medida`: `REPETICOES`, ou `SEGUNDOS` nos isométricos (ex.: wall
+  sit). Finalizar o treino do dia registra os itens marcados com a
+  prescrição, e `ajustes` troca o que foi feito diferente (quem fez 8 em
+  vez de 10 registra 8). O treino livre é montado com exercícios do
+  catálogo. O diário é só da própria conta, e só o treino do dia
+  concluído faz o volume progredir.
+- **Fotos**: JPEG ou PNG, até 5 MB cada (o tipo é conferido pelo conteúdo
+  do arquivo, não pela extensão). Toda foto é re-codificada no servidor:
+  metadados — inclusive a localização GPS que o celular grava — não são
+  guardados, e a rotação da câmera já vem aplicada. A API devolve URLs
+  assinadas que expiram (entre 1 e 2 horas) e funcionam direto num
+  `<img>`, sem login; pra URLs novas, basta pedir o post de novo.
 - Dado corporal (peso, altura, idade, avaliação) só aparece nas rotas da
   própria conta. No feed e no perfil público aparece só a identidade
   pública: nome, username, foto (a do Google) e bio.
@@ -133,6 +158,9 @@ Variáveis de ambiente (todas opcionais pra rodar local, nunca commitadas):
 | `APP_JWT_SECRET` | segredo do access token, com 32+ bytes | segredo aleatório a cada boot (tokens morrem ao reiniciar) |
 | `APP_GOOGLE_CLIENT_IDS` | client IDs OAuth do Google aceitos no login pela API, separados por vírgula | login pela API desligado |
 | `APP_CORS_ORIGINS` | origens web que podem chamar a API pelo navegador, separadas por vírgula | nenhuma origem externa |
+| `APP_ARQUIVOS_DIRETORIO` | onde as fotos são guardadas | `./dados/arquivos` |
+| `APP_ARQUIVOS_URL_BASE` | endereço público das fotos, usado nas URLs devolvidas pela API | `http://localhost:8090/arquivos` |
+| `APP_ARQUIVOS_SEGREDO` | segredo da assinatura das URLs de foto | aleatório a cada boot (URLs morrem ao reiniciar) |
 
 ### Testar a API localmente (perfil `dev`)
 
@@ -227,3 +255,19 @@ arquivo decide em qual dos dois ele entra.
     de seguidores e de quem a conta segue; feed "Seguindo" (os próprios
     posts e os de quem a pessoa segue) ao lado do "Descobrir" (global);
     página do post; busca de conta pelo começo do username ou do nome. ✅
+14. **Privacidade e bloqueio** — cada post escolhe quem vê (todos, só
+    seguidores ou só a própria pessoa), com um padrão configurável por
+    conta; bloquear some com o perfil, os posts e os comentários nos dois
+    sentidos e desfaz o seguir. A regra de quem vê o quê mora num lugar só
+    e vale igual pra API e pras telas. ✅
+15. **Fotos** — até 4 fotos por post e foto de perfil própria (que passa
+    a valer no lugar da do Google). Toda imagem é conferida pelo conteúdo,
+    re-codificada sem metadados (a localização GPS some), redimensionada e
+    servida por URL assinada com validade, gerada só pra quem pode ver o
+    post. Apagar o post apaga os arquivos. ✅
+16. **Diário de treino** — o treino feito vira uma atividade: finalizar o
+    treino do dia registra os itens marcados (com o que foi feito de
+    verdade, se diferente do prescrito), e o treino livre é montado com
+    exercícios do catálogo. Isométricos passaram a ser medidos em
+    segundos. O diário é privado, e só o treino do dia concluído avança a
+    periodização. ✅

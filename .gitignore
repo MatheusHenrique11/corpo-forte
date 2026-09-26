@@ -42,3 +42,6 @@ application-local.properties
 # nunca publicado no repositorio (pode referenciar material pessoal
 # do desenvolvedor que nao deve ir pro historico do Git)
 CLAUDE.md
+
+# Fotos enviadas em dev (app.arquivos.diretorio)
+dados/

@@ -1,6 +1,8 @@
 package com.corpoforte.tracker.onboarding;
 
 import com.corpoforte.tracker.api.PermitidoSemOnboarding;
+import com.corpoforte.tracker.usuario.FotoDePerfil;
+import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualResposta;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,10 +20,13 @@ public class OnboardingApiController {
 
     private final UsuarioAtualService usuarioAtualService;
     private final OnboardingService onboardingService;
+    private final FotoDePerfil fotoDePerfil;
 
-    public OnboardingApiController(UsuarioAtualService usuarioAtualService, OnboardingService onboardingService) {
+    public OnboardingApiController(UsuarioAtualService usuarioAtualService, OnboardingService onboardingService,
+                                   FotoDePerfil fotoDePerfil) {
         this.usuarioAtualService = usuarioAtualService;
         this.onboardingService = onboardingService;
+        this.fotoDePerfil = fotoDePerfil;
     }
 
     @Operation(summary = "Cadastro inicial: perfil, username e peso",
@@ -32,7 +37,7 @@ public class OnboardingApiController {
     @PermitidoSemOnboarding
     public UsuarioAtualResposta concluir(@Valid @RequestBody OnboardingForm form,
                                          @AuthenticationPrincipal Jwt accessToken) {
-        return UsuarioAtualResposta.de(
-                onboardingService.concluir(usuarioAtualService.obterUsuarioAtual(accessToken), form));
+        Usuario usuario = onboardingService.concluir(usuarioAtualService.obterUsuarioAtual(accessToken), form);
+        return UsuarioAtualResposta.de(usuario, fotoDePerfil.url(usuario));
     }
 }

@@ -1,5 +1,6 @@
 package com.corpoforte.tracker.treino;
 
+import com.corpoforte.tracker.exercicio.Medida;
 import com.corpoforte.tracker.exercicio.MovimentoPadrao;
 
 import java.time.LocalDate;
@@ -19,7 +20,8 @@ public record TreinoDoDiaResposta(LocalDate data, List<ItemResposta> itens, List
                                int repeticoes, boolean concluido) {
     }
 
-    public record ExercicioDoItem(Long id, String nome) {
+    /** medida diz se repeticoes do item sao repeticoes ou segundos. */
+    public record ExercicioDoItem(Long id, String nome, Medida medida) {
     }
 
     public record CicloResposta(int semanaAtual, int totalSemanas, boolean precisaReavaliar) {
@@ -29,7 +31,7 @@ public record TreinoDoDiaResposta(LocalDate data, List<ItemResposta> itens, List
         return new TreinoDoDiaResposta(treino.data(),
                 treino.itens().stream()
                         .map(item -> new ItemResposta(item.itemId(), item.movimento(),
-                                new ExercicioDoItem(item.exercicioId(), item.exercicioNome()),
+                                new ExercicioDoItem(item.exercicioId(), item.exercicioNome(), item.medida()),
                                 item.series(), item.repeticoes(), item.concluido()))
                         .toList(),
                 treino.movimentosSemOpcao(),

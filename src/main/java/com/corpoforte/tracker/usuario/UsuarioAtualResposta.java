@@ -12,8 +12,9 @@ package com.corpoforte.tracker.usuario;
 public record UsuarioAtualResposta(Long id, String nome, String email, String username, String fotoUrl,
                                    boolean onboardingConcluido) {
 
-    public static UsuarioAtualResposta de(Usuario usuario) {
+    /** fotoUrl ja resolvida por FotoDePerfil (a enviada, assinada, ou a do Google). */
+    public static UsuarioAtualResposta de(Usuario usuario, String fotoUrl) {
         return new UsuarioAtualResposta(usuario.getId(), usuario.getNome(), usuario.getEmail(),
-                usuario.getUsername(), usuario.getFotoUrl(), usuario.isOnboardingConcluido());
+                usuario.getUsername(), fotoUrl, usuario.isOnboardingConcluido());
     }
 }

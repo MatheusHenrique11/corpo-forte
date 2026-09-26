@@ -1,6 +1,5 @@
 package com.corpoforte.tracker.usuario;
 
-import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,18 +24,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     @Query("select u.id from Usuario u where lower(u.username) = lower(:username)")
     Optional<Long> findIdPorUsername(@Param("username") String username);
-
-    /**
-     * Busca por prefixo do username ou do nome, sem diferenciar maiusculas
-     * (indices text_pattern_ops da V16). So' conta com onboarding: sem
-     * username nao ha perfil publico pra abrir. O prefixo chega ja escapado
-     * (UsernameService.buscarPorPrefixo) - "_" e' valido em username e e'
-     * curinga no like.
-     */
-    @Query("select u from Usuario u where u.username is not null "
-            + "and (lower(u.username) like :prefixo escape '!' or lower(u.nome) like :prefixo escape '!') "
-            + "order by u.username")
-    List<Usuario> buscarPorPrefixo(@Param("prefixo") String prefixo, Limit limite);
 
     /** So' a coluna, sem carregar a conta: e' consultado em toda requisicao
      * da API (OnboardingPendenteInterceptor). */

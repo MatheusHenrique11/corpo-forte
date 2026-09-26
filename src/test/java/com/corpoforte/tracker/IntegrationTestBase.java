@@ -48,9 +48,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
         "spring.security.oauth2.client.registration.google.scope=openid,profile,email",
         "app.owner-email=" + IntegrationTestBase.OWNER_EMAIL,
         "app.auth.google.client-ids=" + GoogleIdTokenDeTeste.CLIENT_ID_WEB + "," + GoogleIdTokenDeTeste.CLIENT_ID_SEGUNDO_CLIENTE,
-        "app.cors.origins=" + IntegrationTestBase.ORIGEM_WEB_PERMITIDA
+        "app.cors.origins=" + IntegrationTestBase.ORIGEM_WEB_PERMITIDA,
+        // fotos (Fase 15): dentro de target/, que o mvn clean apaga; URL no
+        // mesmo host do MockMvc, pra o teste conseguir baixar o que a API
+        // devolveu
+        "app.arquivos.diretorio=" + IntegrationTestBase.DIRETORIO_DE_ARQUIVOS,
+        "app.arquivos.url-base=http://localhost/arquivos"
 })
 public abstract class IntegrationTestBase {
+
+    public static final String DIRETORIO_DE_ARQUIVOS = "target/arquivos-de-teste";
 
     /** Unica origem liberada no CORS da API nos testes (Fase 10). */
     public static final String ORIGEM_WEB_PERMITIDA = "http://localhost:5173";

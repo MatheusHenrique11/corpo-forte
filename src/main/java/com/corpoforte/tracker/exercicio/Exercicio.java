@@ -40,6 +40,11 @@ public class Exercicio {
     @Column(name = "equipamento_necessario", nullable = false)
     private Equipamento equipamentoNecessario;
 
+    /** Repeticoes ou segundos (Fase 16, classificado na V19). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Medida medida = Medida.REPETICOES;
+
     protected Exercicio() {
     }
 
@@ -68,5 +73,9 @@ public class Exercicio {
 
     public Equipamento getEquipamentoNecessario() {
         return equipamentoNecessario;
+    }
+
+    public Medida getMedida() {
+        return medida;
     }
 }

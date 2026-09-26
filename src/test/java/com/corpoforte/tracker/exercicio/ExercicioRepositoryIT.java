@@ -62,6 +62,27 @@ class ExercicioRepositoryIT extends IntegrationTestBase {
         assertThat(todos).extracting(Exercicio::getNome).doesNotContainNull();
     }
 
+    /**
+     * A V19 classifica os isometricos pelo nome. Um nome digitado diferente
+     * do seed nao daria erro nenhum: o update so' atualizaria menos linhas.
+     * Por isso a lista exata.
+     */
+    @Test
+    void osCincoIsometricosDoCatalogoSaoMedidosEmSegundos() {
+        List<Exercicio> todos = exercicioRepository.findAll();
+
+        assertThat(todos)
+                .filteredOn(exercicio -> exercicio.getMedida() == Medida.SEGUNDOS)
+                .extracting(Exercicio::getNome)
+                .containsExactlyInAnyOrder(
+                        "Apoio de ombros na parede",
+                        "Apoio invertido livre na parede",
+                        "Apoio invertido livre sem parede",
+                        "Agachamento na parede (wall sit)",
+                        "Front lever tuck (isometrico)");
+        assertThat(todos).extracting(Exercicio::getMedida).doesNotContainNull();
+    }
+
     @Test
     void muscleUpEstaCadastradoComoAvancadoDePuxarVerticalComBarraFixa() {
         List<Exercicio> todos = exercicioRepository.findAll();

@@ -28,10 +28,13 @@ import java.util.stream.Collectors;
 public class SeguimentoService {
 
     private final SeguimentoRepository seguimentoRepository;
+    private final BloqueioRepository bloqueioRepository;
     private final UsuarioRepository usuarioRepository;
 
-    public SeguimentoService(SeguimentoRepository seguimentoRepository, UsuarioRepository usuarioRepository) {
+    public SeguimentoService(SeguimentoRepository seguimentoRepository, BloqueioRepository bloqueioRepository,
+                             UsuarioRepository usuarioRepository) {
         this.seguimentoRepository = seguimentoRepository;
+        this.bloqueioRepository = bloqueioRepository;
         this.usuarioRepository = usuarioRepository;
     }
 
@@ -44,6 +47,11 @@ public class SeguimentoService {
     public void seguir(Long seguidorId, Long seguidoId) {
         if (seguidorId.equals(seguidoId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível seguir a própria conta");
+        }
+        // com bloqueio (em qualquer sentido) a conta nem aparece pra quem
+        // tenta seguir: mesmo 404 de conta inexistente
+        if (bloqueioRepository.existeEntre(seguidorId, seguidoId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         if (seguimentoRepository.findBySeguidorIdAndSeguidoId(seguidorId, seguidoId).isPresent()) {
             return;
@@ -77,22 +85,26 @@ public class SeguimentoService {
         return usuarioIds.isEmpty() ? Set.of() : new HashSet<>(seguimentoRepository.quaisSegue(seguidorId, usuarioIds));
     }
 
-    /** Quem segue a conta, quem seguiu por ultimo primeiro. */
-    public Pagina<Usuario> paginaDeSeguidores(Long usuarioId, Cursor cursor, int tamanho) {
+    /** Quem segue a conta, quem seguiu por ultimo primeiro, sem as contas
+     * com bloqueio com quem ve. */
+    public Pagina<Usuario> paginaDeSeguidores(Long usuarioId, Long quemVe, Cursor cursor, int tamanho) {
         Limit limite = Limit.of(tamanho + 1);
         List<Seguimento> buscados = cursor == null
-                ? seguimentoRepository.buscarSeguidores(usuarioId, limite)
-                : seguimentoRepository.buscarSeguidoresApos(usuarioId, cursor.comoInstante(), cursor.id(), limite);
+                ? seguimentoRepository.buscarSeguidores(usuarioId, quemVe, limite)
+                : seguimentoRepository.buscarSeguidoresApos(usuarioId, quemVe, cursor.comoInstante(), cursor.id(),
+                        limite);
         return Pagina.deBuscaComUmAMais(buscados, tamanho, SeguimentoService::cursorDe)
                 .mapearTodos(seguimentos -> usuariosNaOrdem(seguimentos, Seguimento::getSeguidorId));
     }
 
-    /** Quem a conta segue, quem ela seguiu por ultimo primeiro. */
-    public Pagina<Usuario> paginaDeSeguindo(Long usuarioId, Cursor cursor, int tamanho) {
+    /** Quem a conta segue, quem ela seguiu por ultimo primeiro, sem as
+     * contas com bloqueio com quem ve. */
+    public Pagina<Usuario> paginaDeSeguindo(Long usuarioId, Long quemVe, Cursor cursor, int tamanho) {
         Limit limite = Limit.of(tamanho + 1);
         List<Seguimento> buscados = cursor == null
-                ? seguimentoRepository.buscarSeguindo(usuarioId, limite)
-                : seguimentoRepository.buscarSeguindoApos(usuarioId, cursor.comoInstante(), cursor.id(), limite);
+                ? seguimentoRepository.buscarSeguindo(usuarioId, quemVe, limite)
+                : seguimentoRepository.buscarSeguindoApos(usuarioId, quemVe, cursor.comoInstante(), cursor.id(),
+                        limite);
         return Pagina.deBuscaComUmAMais(buscados, tamanho, SeguimentoService::cursorDe)
                 .mapearTodos(seguimentos -> usuariosNaOrdem(seguimentos, Seguimento::getSeguidoId));
     }

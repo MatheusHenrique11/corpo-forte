@@ -8,10 +8,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -19,6 +21,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Feed, posts, comentarios e curtidas. Autoria vem sempre do access
@@ -37,10 +44,13 @@ public class FeedApiController {
 
     private final UsuarioAtualService usuarioAtualService;
     private final PostService postService;
+    private final PublicacaoComFotosService publicacaoComFotosService;
 
-    public FeedApiController(UsuarioAtualService usuarioAtualService, PostService postService) {
+    public FeedApiController(UsuarioAtualService usuarioAtualService, PostService postService,
+                             PublicacaoComFotosService publicacaoComFotosService) {
         this.usuarioAtualService = usuarioAtualService;
         this.postService = postService;
+        this.publicacaoComFotosService = publicacaoComFotosService;
     }
 
     @Operation(summary = "Feed global (Descobrir), posts mais recentes primeiro")
@@ -70,12 +80,39 @@ public class FeedApiController {
         return PostResposta.de(postService.visaoDoPost(postId, usuario.getId()));
     }
 
-    @Operation(summary = "Publica um post de texto")
+    @Operation(summary = "Publica um post de texto",
+            description = "visibilidade (PUBLICO, SEGUIDORES, SOMENTE_EU) é opcional: sem ela vale o padrão da "
+                    + "conta (GET/PUT /api/v1/privacidade).")
     @PostMapping("/api/v1/posts")
     @ResponseStatus(HttpStatus.CREATED)
     public PostResposta publicar(@Valid @RequestBody PostForm form, @AuthenticationPrincipal Jwt accessToken) {
         Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
-        Post post = postService.criar(usuario.getId(), form.getTexto());
+        Post post = postService.criar(usuario, form.getTexto(), form.getVisibilidade());
+        return PostResposta.de(postService.visaoDoPost(post, usuario.getId()));
+    }
+
+    /**
+     * Mesma rota, corpo multipart: o POST em JSON continua existindo igual
+     * (contrato aditivo), e o Spring escolhe pelo Content-Type. Parte vazia
+     * de arquivo (formulario de navegador sem arquivo escolhido) e' ignorada.
+     */
+    @Operation(summary = "Publica um post com até 4 fotos (multipart/form-data)",
+            description = "Campos texto (opcional quando há foto) e visibilidade, e as fotos em 'fotos' "
+                    + "(JPEG ou PNG, até 5 MB cada). Toda foto é re-codificada: metadados, inclusive "
+                    + "localização GPS, não são guardados.")
+    @PostMapping(path = "/api/v1/posts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public PostResposta publicarComFotos(@Valid @ModelAttribute PostComFotosForm form,
+                                         @RequestParam(name = "fotos", required = false) List<MultipartFile> fotos,
+                                         @AuthenticationPrincipal Jwt accessToken) throws IOException {
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
+        List<byte[]> originais = new ArrayList<>();
+        for (MultipartFile foto : fotos == null ? List.<MultipartFile>of() : fotos) {
+            if (!foto.isEmpty()) {
+                originais.add(foto.getBytes());
+            }
+        }
+        Post post = publicacaoComFotosService.publicar(usuario, form.getTexto(), form.getVisibilidade(), originais);
         return PostResposta.de(postService.visaoDoPost(post, usuario.getId()));
     }
 

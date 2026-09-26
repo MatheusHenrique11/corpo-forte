@@ -71,11 +71,14 @@ class PerfilPublicoApiIT extends IntegrationTestBase {
                 .andExpect(jsonPath("$.nome").value("Autora"))
                 .andExpect(jsonPath("$.bio").value("Calistenia todo dia"))
                 .andExpect(jsonPath("$.contagens.posts").value(2))
-                .andExpect(content().string(not(containsString("peso"))))
-                .andExpect(content().string(not(containsString("altura"))))
-                .andExpect(content().string(not(containsString("idade"))))
-                .andExpect(content().string(not(containsString("objetivo"))))
-                .andExpect(content().string(not(containsString("nivel"))))
+                // chaves JSON em qualquer nivel, nao texto solto (um campo
+                // "visibilidade" casaria com "idade")
+                .andExpect(jsonPath("$..pesoKg").isEmpty())
+                .andExpect(jsonPath("$..alturaCm").isEmpty())
+                .andExpect(jsonPath("$..idade").isEmpty())
+                .andExpect(jsonPath("$..objetivo").isEmpty())
+                .andExpect(jsonPath("$..nivel").isEmpty())
+                .andExpect(jsonPath("$..email").isEmpty())
                 .andExpect(content().string(not(containsString("autora@exemplo.com"))));
     }
 

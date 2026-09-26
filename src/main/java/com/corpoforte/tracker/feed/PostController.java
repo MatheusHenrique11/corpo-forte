@@ -43,7 +43,7 @@ public class PostController {
             return "feed";
         }
 
-        postService.criar(usuario.getId(), form.getTexto());
+        postService.criar(usuario, form.getTexto(), form.getVisibilidade());
 
         return "redirect:/feed";
     }

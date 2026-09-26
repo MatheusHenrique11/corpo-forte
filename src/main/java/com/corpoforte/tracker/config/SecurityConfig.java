@@ -80,6 +80,10 @@ public class SecurityConfig {
                         // rotas dao 404. Abertas pra gerar cliente a partir
                         // da especificacao sem precisar de sessao.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Fotos (Fase 15): quem autoriza e' a assinatura da
+                        // URL, gerada so' depois da checagem de visibilidade
+                        // - <img src> nao manda sessao nem token.
+                        .requestMatchers(HttpMethod.GET, "/arquivos/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(Customizer.withDefaults())
                 .logout(logout -> logout.logoutSuccessUrl("/").permitAll());

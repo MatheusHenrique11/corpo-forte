@@ -3,6 +3,9 @@ package com.corpoforte.tracker.config;
 import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
 import com.corpoforte.tracker.api.Cursor;
+import com.corpoforte.tracker.atividade.AtividadeLivreRequisicao;
+import com.corpoforte.tracker.atividade.AtividadeService;
+import com.corpoforte.tracker.atividade.SeriesDeExercicio;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.peso.RegistroPesoService;
 import com.corpoforte.tracker.usuario.Usuario;
@@ -16,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -51,6 +55,9 @@ class IsolamentoEntreUsuariosIT extends IntegrationTestBase {
 
     @Autowired
     private AvaliacaoFisicaService avaliacaoFisicaService;
+
+    @Autowired
+    private AtividadeService atividadeService;
 
     private final OidcUser usuarioA = OidcTestUsers.principal("sub-isolamento-a", "Usuaria A", "a@exemplo.com");
     private final OidcUser usuarioB = OidcTestUsers.principal("sub-isolamento-b", "Usuario B", "b@exemplo.com");
@@ -116,6 +123,25 @@ class IsolamentoEntreUsuariosIT extends IntegrationTestBase {
         String cursorForjado = Cursor.apos(LocalDate.of(2026, 5, 2), 0).codificar();
 
         mockMvc.perform(get("/api/v1/pesos").param("cursor", cursorForjado)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens", hasSize(0)));
+    }
+
+    /** Diario de treino (Fase 16) e' privado como o peso: o de A nao
+     * aparece no de B. */
+    @Test
+    void apiDiarioDeTreinoDeUmUsuarioNaoApareceParaOOutro() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        atividadeService.registrarLivre(a, new AtividadeLivreRequisicao(LocalDate.of(2026, 5, 1), null, null,
+                "treino da A", List.of(new SeriesDeExercicio(1L, List.of(10)))));
+
+        mockMvc.perform(get("/api/v1/atividades").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens", hasSize(0)));
+        // cursor forjado com a posicao da atividade de A tambem nao mostra nada
+        mockMvc.perform(get("/api/v1/atividades").param("cursor", Cursor.apos(LocalDate.of(2026, 5, 2), 0).codificar())
                         .header(HttpHeaders.AUTHORIZATION, bearer(b)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itens", hasSize(0)));

@@ -13,15 +13,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsuarioApiController {
 
     private final UsuarioAtualService usuarioAtualService;
+    private final FotoDePerfil fotoDePerfil;
 
-    public UsuarioApiController(UsuarioAtualService usuarioAtualService) {
+    public UsuarioApiController(UsuarioAtualService usuarioAtualService, FotoDePerfil fotoDePerfil) {
         this.usuarioAtualService = usuarioAtualService;
+        this.fotoDePerfil = fotoDePerfil;
     }
 
     @Operation(summary = "Conta dona do access token")
     @GetMapping("/api/v1/me")
     @PermitidoSemOnboarding
     public UsuarioAtualResposta me(@AuthenticationPrincipal Jwt accessToken) {
-        return UsuarioAtualResposta.de(usuarioAtualService.obterUsuarioAtual(accessToken));
+        Usuario usuario = usuarioAtualService.obterUsuarioAtual(accessToken);
+        return UsuarioAtualResposta.de(usuario, fotoDePerfil.url(usuario));
     }
 }

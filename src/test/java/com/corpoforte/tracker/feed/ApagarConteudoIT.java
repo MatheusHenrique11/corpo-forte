@@ -76,7 +76,7 @@ class ApagarConteudoIT extends IntegrationTestBase {
         entityManager.clear();
 
         assertThat(postRepository.existsById(post.getId())).isFalse();
-        assertThat(comentarioRepository.findByPostIdInOrderByCriadoEmAsc(List.of(post.getId()))).isEmpty();
+        assertThat(comentarioRepository.findAll()).noneMatch(comentario -> comentario.getPostId().equals(post.getId()));
         assertThat(curtidaRepository.contarPorPost(List.of(post.getId()))).isEmpty();
     }
 

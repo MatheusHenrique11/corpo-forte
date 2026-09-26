@@ -1,23 +1,32 @@
 package com.corpoforte.tracker.feed;
 
 import com.corpoforte.tracker.api.Cursor;
+import com.corpoforte.tracker.arquivos.ArmazenamentoArquivos;
+import com.corpoforte.tracker.arquivos.ImagemProcessada;
 import com.corpoforte.tracker.api.Pagina;
+import com.corpoforte.tracker.usuario.FotoDePerfil;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioRepository;
+import com.corpoforte.tracker.usuario.Visibilidade;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Limit;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -31,25 +40,70 @@ public class PostService {
      * paginaDeComentarios. */
     static final int COMENTARIOS_RECENTES_POR_POST = 3;
 
+    private static final Logger log = LoggerFactory.getLogger(PostService.class);
+
     private final PostRepository postRepository;
     private final ComentarioRepository comentarioRepository;
     private final CurtidaRepository curtidaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final FotoPostRepository fotoPostRepository;
+    private final ArmazenamentoArquivos armazenamento;
+    private final FotoDePerfil fotoDePerfil;
 
     public PostService(PostRepository postRepository, ComentarioRepository comentarioRepository,
-                        CurtidaRepository curtidaRepository, UsuarioRepository usuarioRepository) {
+                        CurtidaRepository curtidaRepository, UsuarioRepository usuarioRepository,
+                        FotoPostRepository fotoPostRepository, ArmazenamentoArquivos armazenamento,
+                        FotoDePerfil fotoDePerfil) {
         this.postRepository = postRepository;
         this.comentarioRepository = comentarioRepository;
         this.curtidaRepository = curtidaRepository;
         this.usuarioRepository = usuarioRepository;
+        this.fotoPostRepository = fotoPostRepository;
+        this.armazenamento = armazenamento;
+        this.fotoDePerfil = fotoDePerfil;
     }
 
-    public Post criar(Long usuarioId, String texto) {
-        return postRepository.save(new Post(usuarioId, texto, agora()));
+    /** Sem visibilidade escolhida, vale o padrao da conta (Fase 14). */
+    public Post criar(Usuario autor, String texto, Visibilidade escolhida) {
+        Visibilidade visibilidade = escolhida != null ? escolhida : autor.getVisibilidadePadrao();
+        return postRepository.save(new Post(autor.getId(), texto, agora(), visibilidade));
     }
 
+    /**
+     * Post com fotos ja processadas (ProcessadorDeImagem: validadas,
+     * re-codificadas, sem EXIF). Nome de arquivo e' UUID aleatorio, nunca
+     * algo vindo do cliente. Se qualquer gravacao falhar, os arquivos ja
+     * gravados sao apagados e a transacao desfaz post e linhas de foto: nao
+     * sobra post pela metade nem arquivo sem dono.
+     */
+    @Transactional
+    public Post criarComFotos(Usuario autor, String texto, Visibilidade escolhida, List<ImagemProcessada> fotos) {
+        Post post = criar(autor, texto, escolhida);
+        List<String> gravadas = new ArrayList<>();
+        try {
+            for (int posicao = 0; posicao < fotos.size(); posicao++) {
+                ImagemProcessada foto = fotos.get(posicao);
+                String base = "posts/" + UUID.randomUUID();
+                String chave = base + ".jpg";
+                String chaveMiniatura = base + "_mini.jpg";
+                armazenamento.gravar(chave, foto.principal());
+                gravadas.add(chave);
+                armazenamento.gravar(chaveMiniatura, foto.miniatura());
+                gravadas.add(chaveMiniatura);
+                fotoPostRepository.save(new FotoPost(post.getId(), posicao, chave, chaveMiniatura,
+                        foto.largura(), foto.altura(), agora()));
+            }
+        } catch (RuntimeException e) {
+            gravadas.forEach(this::apagarArquivoSemFalhar);
+            throw e;
+        }
+        return post;
+    }
+
+    /** So' em post que quem comenta consegue ver - post invisivel da o
+     * mesmo 404 de inexistente (inclui bloqueio com o autor). */
     public Comentario comentar(Long postId, Long usuarioId, String texto) {
-        exigirPostExistente(postId);
+        exigirPostVisivel(postId, usuarioId);
         return comentarioRepository.save(new Comentario(postId, usuarioId, texto, agora()));
     }
 
@@ -78,7 +132,24 @@ public class PostService {
                 .filter(encontrado -> encontrado.getUsuarioId().equals(usuarioId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
+        // as linhas de foto saem pelo cascade; os arquivos, daqui - depois do
+        // post ja apagado, pra uma falha no banco nao levar as fotos junto
+        List<FotoPost> fotos = fotoPostRepository.findByPostId(post.getId());
         postRepository.delete(post);
+        fotos.forEach(foto -> {
+            apagarArquivoSemFalhar(foto.getChave());
+            apagarArquivoSemFalhar(foto.getChaveMiniatura());
+        });
+    }
+
+    /** O post ja foi apagado: um arquivo que falhe em sair vira sobra no
+     * disco (logada), nao um erro pra quem pediu pra apagar. */
+    private void apagarArquivoSemFalhar(String chave) {
+        try {
+            armazenamento.apagar(chave);
+        } catch (RuntimeException e) {
+            log.warn("Nao foi possivel apagar o arquivo {}", chave, e);
+        }
     }
 
     /**
@@ -112,7 +183,7 @@ public class PostService {
      * linha existir ou nao. E' o botao da tela; a API usa curtir/descurtir.
      */
     public void alternarCurtida(Long postId, Long usuarioId) {
-        exigirPostExistente(postId);
+        exigirPostVisivel(postId, usuarioId);
 
         Optional<Curtida> existente = curtidaRepository.findByPostIdAndUsuarioId(postId, usuarioId);
         if (existente.isPresent()) {
@@ -129,7 +200,7 @@ public class PostService {
      * uma falha de rede desfaria a curtida.
      */
     public void curtir(Long postId, Long usuarioId) {
-        exigirPostExistente(postId);
+        exigirPostVisivel(postId, usuarioId);
 
         if (curtidaRepository.findByPostIdAndUsuarioId(postId, usuarioId).isEmpty()) {
             gravarCurtida(postId, usuarioId);
@@ -138,7 +209,7 @@ public class PostService {
 
     /** Idempotente (DELETE): descurtir o que nao esta curtido nao e' erro. */
     public void descurtir(Long postId, Long usuarioId) {
-        exigirPostExistente(postId);
+        exigirPostVisivel(postId, usuarioId);
 
         curtidaRepository.findByPostIdAndUsuarioId(postId, usuarioId).ifPresent(curtidaRepository::delete);
     }
@@ -162,16 +233,18 @@ public class PostService {
     }
 
     /**
-     * Feed da tela: todos os posts (de todo mundo, de proposito - ver
-     * Post.java), cada um com todos os comentarios.
+     * Feed da tela: todos os posts que quem ve pode ver (de todo mundo, de
+     * proposito - ver Post.java - menos o que a visibilidade e o bloqueio
+     * escondem), cada um com todos os comentarios. A tela e' outra porta de
+     * entrada pro mesmo dado, entao usa a mesma regra da API.
      */
     public List<PostView> listarFeed(Long usuarioIdAtual) {
-        List<Post> posts = postRepository.findAllByOrderByCriadoEmDesc();
+        List<Post> posts = postRepository.buscarTodosVisiveis(usuarioIdAtual);
         if (posts.isEmpty()) {
             return List.of();
         }
 
-        List<Comentario> comentarios = comentarioRepository.findByPostIdInOrderByCriadoEmAsc(idsDe(posts));
+        List<Comentario> comentarios = comentarioRepository.buscarDosPosts(idsDe(posts), usuarioIdAtual);
         Map<Long, Long> totalDeComentarios = comentarios.stream()
                 .collect(Collectors.groupingBy(Comentario::getPostId, Collectors.counting()));
 
@@ -187,8 +260,8 @@ public class PostService {
     public Pagina<PostView> paginaDoFeed(Long usuarioIdAtual, Cursor cursor, int tamanho) {
         Limit limite = Limit.of(tamanho + 1);
         List<Post> buscados = cursor == null
-                ? postRepository.buscarMaisRecentes(limite)
-                : postRepository.buscarAnterioresA(cursor.comoInstante(), cursor.id(), limite);
+                ? postRepository.buscarMaisRecentes(usuarioIdAtual, limite)
+                : postRepository.buscarAnterioresA(usuarioIdAtual, cursor.comoInstante(), cursor.id(), limite);
 
         return Pagina.deBuscaComUmAMais(buscados, tamanho, post -> Cursor.apos(post.getCriadoEm(), post.getId()))
                 .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
@@ -208,9 +281,7 @@ public class PostService {
     /** Pagina de um post (pra onde um link ou aviso aponta): o mesmo formato
      * do feed; o resto dos comentarios vem de paginaDeComentarios. */
     public PostView visaoDoPost(Long postId, Long usuarioIdAtual) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return visaoDoPost(post, usuarioIdAtual);
+        return visaoDoPost(postVisivel(postId, usuarioIdAtual), usuarioIdAtual);
     }
 
     /** Posts de um autor, no mesmo formato e com o mesmo cursor do feed
@@ -218,15 +289,17 @@ public class PostService {
     public Pagina<PostView> paginaDoAutor(Long autorId, Long usuarioIdAtual, Cursor cursor, int tamanho) {
         Limit limite = Limit.of(tamanho + 1);
         List<Post> buscados = cursor == null
-                ? postRepository.buscarMaisRecentesDoAutor(autorId, limite)
-                : postRepository.buscarDoAutorAnterioresA(autorId, cursor.comoInstante(), cursor.id(), limite);
+                ? postRepository.buscarMaisRecentesDoAutor(autorId, usuarioIdAtual, limite)
+                : postRepository.buscarDoAutorAnterioresA(autorId, usuarioIdAtual, cursor.comoInstante(), cursor.id(),
+                        limite);
 
         return Pagina.deBuscaComUmAMais(buscados, tamanho, post -> Cursor.apos(post.getCriadoEm(), post.getId()))
                 .mapearTodos(posts -> montarComComentariosRecentes(posts, usuarioIdAtual));
     }
 
-    public long contarDoAutor(Long autorId) {
-        return postRepository.countByUsuarioId(autorId);
+    /** Quantos posts do autor quem ve consegue ver. */
+    public long contarVisiveisDoAutor(Long autorId, Long usuarioIdAtual) {
+        return postRepository.contarVisiveisDoAutor(autorId, usuarioIdAtual);
     }
 
     /** Um post no mesmo formato do feed paginado (resposta de quem acabou
@@ -238,13 +311,13 @@ public class PostService {
     /** Comentarios de um post, do mais antigo pro mais novo, paginados. 404
      * pra post inexistente, igual comentar e curtir. */
     public Pagina<ComentarioView> paginaDeComentarios(Long postId, Long usuarioIdAtual, Cursor cursor, int tamanho) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = postVisivel(postId, usuarioIdAtual);
 
         Limit limite = Limit.of(tamanho + 1);
         List<Comentario> buscados = cursor == null
-                ? comentarioRepository.buscarDoPost(postId, limite)
-                : comentarioRepository.buscarDoPostApos(postId, cursor.comoInstante(), cursor.id(), limite);
+                ? comentarioRepository.buscarDoPost(postId, usuarioIdAtual, limite)
+                : comentarioRepository.buscarDoPostApos(postId, usuarioIdAtual, cursor.comoInstante(), cursor.id(),
+                        limite);
 
         return Pagina.deBuscaComUmAMais(buscados, tamanho,
                         comentario -> Cursor.apos(comentario.getCriadoEm(), comentario.getId()))
@@ -271,8 +344,9 @@ public class PostService {
         }
 
         List<Long> postIds = idsDe(posts);
-        List<Comentario> recentes = comentarioRepository.buscarRecentesPorPost(postIds, COMENTARIOS_RECENTES_POR_POST);
-        Map<Long, Long> totalDeComentarios = comentarioRepository.contarPorPost(postIds).stream()
+        List<Comentario> recentes = comentarioRepository.buscarRecentesPorPost(postIds, COMENTARIOS_RECENTES_POR_POST,
+                usuarioIdAtual);
+        Map<Long, Long> totalDeComentarios = comentarioRepository.contarPorPost(postIds, usuarioIdAtual).stream()
                 .collect(Collectors.toMap(ContagemPorPost::getPostId, ContagemPorPost::getTotal));
 
         return montar(posts, recentes, totalDeComentarios, usuarioIdAtual);
@@ -310,14 +384,25 @@ public class PostService {
                 .map(Curtida::getPostId)
                 .collect(Collectors.toSet());
 
+        // URLs assinadas aqui: so' chegam a este metodo posts que ja passaram
+        // pela RegraDeVisibilidade pra quem esta vendo
+        Map<Long, List<FotoView>> fotosPorPost = fotoPostRepository.findByPostIdInOrderByPostIdAscPosicaoAsc(postIds)
+                .stream()
+                .collect(Collectors.groupingBy(FotoPost::getPostId, LinkedHashMap::new,
+                        Collectors.mapping(foto -> new FotoView(armazenamento.urlAssinada(foto.getChave()),
+                                        armazenamento.urlAssinada(foto.getChaveMiniatura()),
+                                        foto.getLargura(), foto.getAltura()),
+                                Collectors.toList())));
+
         return posts.stream()
                 .map(post -> new PostView(post.getId(), autores.get(post.getUsuarioId()),
-                        post.getTexto(), post.getCriadoEm(),
+                        post.getTexto(), post.getCriadoEm(), post.getVisibilidade(),
                         curtidasPorPost.getOrDefault(post.getId(), 0L),
                         curtidosPorMim.contains(post.getId()),
                         post.getUsuarioId().equals(usuarioIdAtual),
                         totalDeComentarios.getOrDefault(post.getId(), 0L),
-                        comentariosPorPost.getOrDefault(post.getId(), List.of())))
+                        comentariosPorPost.getOrDefault(post.getId(), List.of()),
+                        fotosPorPost.getOrDefault(post.getId(), List.of())))
                 .toList();
     }
 
@@ -341,19 +426,21 @@ public class PostService {
         comentarios.forEach(comentario -> autorIds.add(comentario.getUsuarioId()));
 
         return usuarioRepository.findAllById(autorIds).stream()
-                .collect(Collectors.toMap(Usuario::getId, AutorView::de));
+                .collect(Collectors.toMap(Usuario::getId, usuario -> AutorView.de(usuario, fotoDePerfil.url(usuario))));
     }
 
     /**
-     * 404 (nao 400/500) pra post inexistente, igual
-     * TreinoDoDiaService.alternarConclusao: postId vem do cliente, e a
-     * resposta pra um ID que nao existe nao deve vazar detalhe interno.
-     * Aqui NAO se checa dono do post - comentar e curtir post dos outros e'
-     * a funcao, ver EndpointsComIdIT.
+     * 404 (nao 400/500) pra post inexistente OU que quem pede nao pode ver
+     * (RegraDeVisibilidade, pela mesma consulta das listagens): a resposta
+     * nao confirma que o post existe. Aqui NAO se checa dono do post -
+     * comentar e curtir post dos outros e' a funcao, ver EndpointsComIdIT.
      */
-    private void exigirPostExistente(Long postId) {
-        if (!postRepository.existsById(postId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
+    private Post postVisivel(Long postId, Long usuarioId) {
+        return postRepository.buscarVisivel(postId, usuarioId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    private void exigirPostVisivel(Long postId, Long usuarioId) {
+        postVisivel(postId, usuarioId);
     }
 }

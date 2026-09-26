@@ -52,6 +52,17 @@ public final class ProblemaApi {
         return conflito("username-indisponivel", "Esse nome de usuário já está em uso.");
     }
 
+    /** Finalizar o treino do dia sem treino gerado hoje ou sem item marcado. */
+    public static ErrorResponseException treinoSemItensConcluidos() {
+        return conflito("treino-sem-itens-concluidos",
+                "Marque ao menos um item do treino de hoje antes de finalizar.");
+    }
+
+    /** O treino do dia vira no maximo uma atividade. */
+    public static ErrorResponseException treinoJaFinalizado() {
+        return conflito("treino-ja-finalizado", "O treino de hoje já foi finalizado.");
+    }
+
     private static ErrorResponseException conflito(String tipo, String detalhe) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detalhe);
         problema.setType(URI.create(PREFIXO_TIPO + tipo));

@@ -48,11 +48,21 @@ public class Usuario {
     @Column(name = "foto_url")
     private String fotoUrl;
 
+    /** Foto enviada pela propria pessoa (Fase 15): chave no armazenamento.
+     * Quando existe, vale no lugar da do Google (FotoDePerfil). */
+    @Column(name = "foto_chave")
+    private String fotoChave;
+
     /** Enquanto false, a API responde onboarding-pendente em quase tudo
      * (OnboardingPendenteInterceptor). Conta nova nasce com dado inventado
      * (100 kg, 178 cm...), e o onboarding e' o que troca isso por dado real. */
     @Column(name = "onboarding_concluido", nullable = false)
     private boolean onboardingConcluido = false;
+
+    /** Visibilidade dos posts novos quando o post nao escolhe uma (Fase 14). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibilidade_padrao", nullable = false)
+    private Visibilidade visibilidadePadrao = Visibilidade.PUBLICO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -163,6 +173,17 @@ public class Usuario {
         this.onboardingConcluido = true;
     }
 
+    /** Devolve a chave da foto anterior, pra quem chama apagar o arquivo. */
+    public String definirFotoPropria(String chave) {
+        String anterior = this.fotoChave;
+        this.fotoChave = chave;
+        return anterior;
+    }
+
+    public void definirVisibilidadePadrao(Visibilidade visibilidadePadrao) {
+        this.visibilidadePadrao = visibilidadePadrao;
+    }
+
     public void atualizarPerfilPublico(String username, String bio) {
         this.username = username;
         this.bio = bio;
@@ -208,8 +229,16 @@ public class Usuario {
         return fotoUrl;
     }
 
+    public String getFotoChave() {
+        return fotoChave;
+    }
+
     public boolean isOnboardingConcluido() {
         return onboardingConcluido;
+    }
+
+    public Visibilidade getVisibilidadePadrao() {
+        return visibilidadePadrao;
     }
 
     public Role getRole() {

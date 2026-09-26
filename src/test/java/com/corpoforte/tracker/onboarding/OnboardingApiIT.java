@@ -32,6 +32,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -214,9 +215,15 @@ class OnboardingApiIT extends IntegrationTestBase {
                 .andExpect(status().isOk());
     }
 
+    /** Cada rota com o tipo de corpo que ela aceita (JSON ou, desde a Fase
+     * 15, multipart) - senao o 415 viria antes do bloqueio. */
     private ResultActions chamar(Rota rota) throws Exception {
         String url = rota.caminho().replaceAll("\\{[^}]+}", "1");
-        return mockMvc.perform(request(HttpMethod.valueOf(rota.metodo().name()), url)
+        HttpMethod metodo = HttpMethod.valueOf(rota.metodo().name());
+        if (rota.multipart()) {
+            return mockMvc.perform(multipart(metodo, url).header(HttpHeaders.AUTHORIZATION, bearer(pendente)));
+        }
+        return mockMvc.perform(request(metodo, url)
                 .header(HttpHeaders.AUTHORIZATION, bearer(pendente))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"));
@@ -229,17 +236,19 @@ class OnboardingApiIT extends IntegrationTestBase {
             boolean liberada = metodo.hasMethodAnnotation(PermitidoSemOnboarding.class)
                     || metodo.getBeanType().isAnnotationPresent(PermitidoSemOnboarding.class);
             Set<RequestMethod> verbos = mapeamento.getKey().getMethodsCondition().getMethods();
+            boolean multipart = mapeamento.getKey().getConsumesCondition().getConsumableMediaTypes()
+                    .contains(MediaType.MULTIPART_FORM_DATA);
             for (String caminho : mapeamento.getKey().getPatternValues()) {
                 if (!caminho.startsWith("/api/v1/") || caminho.startsWith("/api/v1/auth/")) {
                     continue;
                 }
-                verbos.forEach(verbo -> rotas.add(new Rota(verbo, caminho, liberada)));
+                verbos.forEach(verbo -> rotas.add(new Rota(verbo, caminho, liberada, multipart)));
             }
         }
         return rotas;
     }
 
-    private record Rota(RequestMethod metodo, String caminho, boolean liberada) {
+    private record Rota(RequestMethod metodo, String caminho, boolean liberada, boolean multipart) {
         @Override
         public String toString() {
             return metodo + " " + caminho;

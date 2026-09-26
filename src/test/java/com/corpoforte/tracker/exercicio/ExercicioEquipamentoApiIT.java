@@ -44,6 +44,7 @@ class ExercicioEquipamentoApiIT extends IntegrationTestBase {
         mockMvc.perform(get("/api/v1/exercicios").header(HttpHeaders.AUTHORIZATION, bearer(usuario)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itens", hasSize(54)))
+                .andExpect(jsonPath("$.itens[?(@.medida == 'SEGUNDOS')]", hasSize(5)))
                 .andExpect(jsonPath("$.proximoCursor").doesNotExist());
     }
 

@@ -2,7 +2,7 @@ package com.corpoforte.tracker.social;
 
 import com.corpoforte.tracker.api.Cursor;
 import com.corpoforte.tracker.api.Pagina;
-import com.corpoforte.tracker.usuario.UsernameService;
+import com.corpoforte.tracker.usuario.FotoDePerfil;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,28 +17,30 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 /**
  * Seguir como sub-recurso da conta seguida: PUT segue, DELETE deixa de
  * seguir, os dois idempotentes (mesmo formato da curtida). Seguir a conta
- * de outra pessoa pelo username e' a funcao (EndpointsComIdIT).
+ * de outra pessoa pelo username e' a funcao (EndpointsComIdIT). Conta com
+ * bloqueio com quem pede responde 404 em todas as rotas daqui.
  */
 @RestController
 @Tag(name = "Seguir")
 public class SeguimentoApiController {
 
     private final UsuarioAtualService usuarioAtualService;
-    private final UsernameService usernameService;
+    private final BloqueioService bloqueioService;
     private final SeguimentoService seguimentoService;
+    private final FotoDePerfil fotoDePerfil;
 
-    public SeguimentoApiController(UsuarioAtualService usuarioAtualService, UsernameService usernameService,
-                                   SeguimentoService seguimentoService) {
+    public SeguimentoApiController(UsuarioAtualService usuarioAtualService, BloqueioService bloqueioService,
+                                   SeguimentoService seguimentoService, FotoDePerfil fotoDePerfil) {
         this.usuarioAtualService = usuarioAtualService;
-        this.usernameService = usernameService;
+        this.bloqueioService = bloqueioService;
         this.seguimentoService = seguimentoService;
+        this.fotoDePerfil = fotoDePerfil;
     }
 
     @Operation(summary = "Segue a conta (idempotente)", description = "400 ao tentar seguir a própria conta.")
@@ -46,7 +48,7 @@ public class SeguimentoApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void seguir(@PathVariable String username, @AuthenticationPrincipal Jwt accessToken) {
         Usuario eu = usuarioAtualService.obterUsuarioAtual(accessToken);
-        seguimentoService.seguir(eu.getId(), porUsername(username).getId());
+        seguimentoService.seguir(eu.getId(), bloqueioService.contaVisivel(username, eu.getId()).getId());
     }
 
     @Operation(summary = "Deixa de seguir a conta (idempotente)")
@@ -54,7 +56,7 @@ public class SeguimentoApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deixarDeSeguir(@PathVariable String username, @AuthenticationPrincipal Jwt accessToken) {
         Usuario eu = usuarioAtualService.obterUsuarioAtual(accessToken);
-        seguimentoService.deixarDeSeguir(eu.getId(), porUsername(username).getId());
+        seguimentoService.deixarDeSeguir(eu.getId(), bloqueioService.contaVisivel(username, eu.getId()).getId());
     }
 
     @Operation(summary = "Quem segue a conta, quem seguiu por último primeiro")
@@ -64,7 +66,8 @@ public class SeguimentoApiController {
                                                     @AuthenticationPrincipal Jwt accessToken) {
         Usuario eu = usuarioAtualService.obterUsuarioAtual(accessToken);
         return seguimentoService
-                .paginaDeSeguidores(porUsername(username).getId(), Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
+                .paginaDeSeguidores(bloqueioService.contaVisivel(username, eu.getId()).getId(), eu.getId(),
+                        Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
                 .mapearTodos(usuarios -> resumos(usuarios, eu));
     }
 
@@ -75,17 +78,14 @@ public class SeguimentoApiController {
                                                   @AuthenticationPrincipal Jwt accessToken) {
         Usuario eu = usuarioAtualService.obterUsuarioAtual(accessToken);
         return seguimentoService
-                .paginaDeSeguindo(porUsername(username).getId(), Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
+                .paginaDeSeguindo(bloqueioService.contaVisivel(username, eu.getId()).getId(), eu.getId(),
+                        Cursor.decodificar(cursor), Pagina.TAMANHO_PADRAO)
                 .mapearTodos(usuarios -> resumos(usuarios, eu));
     }
 
     private List<UsuarioResumoResposta> resumos(List<Usuario> usuarios, Usuario quemVe) {
         return UsuarioResumoResposta.de(usuarios,
-                seguimentoService.quaisSegue(quemVe.getId(), usuarios.stream().map(Usuario::getId).toList()));
-    }
-
-    private Usuario porUsername(String username) {
-        return usernameService.buscarPorUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                seguimentoService.quaisSegue(quemVe.getId(), usuarios.stream().map(Usuario::getId).toList()),
+                fotoDePerfil::url);
     }
 }

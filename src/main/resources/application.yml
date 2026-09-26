@@ -17,6 +17,13 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # Fotos (Fase 15): ate 4 por post, 5 MB cada. O limite por arquivo e' o
+  # da regra; o da requisicao cabe 4 fotos + os campos de texto.
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 21MB
+
   # Credenciais reais vem de variavel de ambiente (nunca commitadas). O
   # fallback "nao-configurado" existe so pra nao travar o boot quando as
   # variaveis nao estao setadas - o login com Google nao vai funcionar
@@ -68,3 +75,13 @@ app:
   # separadas por virgula. Vazio: nenhuma origem externa.
   cors:
     origins: ${APP_CORS_ORIGINS:}
+
+  # Fotos (Fase 15), guardadas em disco e servidas por URL assinada.
+  arquivos:
+    diretorio: ${APP_ARQUIVOS_DIRETORIO:./dados/arquivos}
+    # Endereco publico de /arquivos, que entra nas URLs assinadas devolvidas
+    # pela API (absoluto: o cliente web pode estar em outra origem).
+    url-base: ${APP_ARQUIVOS_URL_BASE:http://localhost:8090/arquivos}
+    # Segredo do HMAC das URLs. Vazio: aleatorio a cada boot (as URLs morrem
+    # ao reiniciar), nunca um valor padrao escrito aqui.
+    segredo: ${APP_ARQUIVOS_SEGREDO:}

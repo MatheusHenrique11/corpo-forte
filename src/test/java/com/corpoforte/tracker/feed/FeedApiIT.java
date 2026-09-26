@@ -20,10 +20,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -223,9 +221,11 @@ class FeedApiIT extends IntegrationTestBase {
 
         mockMvc.perform(get("/api/v1/feed/descobrir").header(HttpHeaders.AUTHORIZATION, bearer(autora)))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("pesoKg"))))
-                .andExpect(content().string(not(containsString("alturaCm"))))
-                .andExpect(content().string(not(containsString("idade"))));
+                // nenhuma chave com esses nomes em nenhum nivel do JSON (checar
+                // texto solto daria falso positivo: "visibilidade" contem "idade")
+                .andExpect(jsonPath("$..pesoKg").isEmpty())
+                .andExpect(jsonPath("$..alturaCm").isEmpty())
+                .andExpect(jsonPath("$..idade").isEmpty());
     }
 
     private String feed(String cursor) throws Exception {

@@ -1,5 +1,7 @@
 package com.corpoforte.tracker.feed;
 
+import com.corpoforte.tracker.arquivos.ArmazenamentoArquivos;
+import com.corpoforte.tracker.usuario.FotoDePerfil;
 import com.corpoforte.tracker.usuario.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,8 +36,9 @@ class PostServiceTest {
     private final CurtidaRepository curtidaRepository = mock(CurtidaRepository.class);
     private final UsuarioRepository usuarioRepository = mock(UsuarioRepository.class);
 
-    private final PostService service =
-            new PostService(postRepository, comentarioRepository, curtidaRepository, usuarioRepository);
+    private final PostService service = new PostService(postRepository, comentarioRepository, curtidaRepository,
+            usuarioRepository, mock(FotoPostRepository.class), mock(ArmazenamentoArquivos.class),
+            mock(FotoDePerfil.class));
 
     /**
      * Duplo clique no botao de curtir (ou duas abas): as duas requisicoes
@@ -45,7 +48,7 @@ class PostServiceTest {
      */
     @Test
     void curtidaConcorrenteQueColideNaConstraintNaoVira500() {
-        when(postRepository.existsById(1L)).thenReturn(true);
+        when(postRepository.buscarVisivel(1L, 7L)).thenReturn(Optional.of(new Post(9L, "post", LocalDateTime.now())));
         when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.empty());
         when(curtidaRepository.save(any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
@@ -56,7 +59,7 @@ class PostServiceTest {
     @Test
     void curtirDeNovoDescurteEmVezDeInserirSegundaLinha() {
         Curtida jaCurtido = new Curtida(1L, 7L, LocalDateTime.now());
-        when(postRepository.existsById(1L)).thenReturn(true);
+        when(postRepository.buscarVisivel(1L, 7L)).thenReturn(Optional.of(new Post(9L, "post", LocalDateTime.now())));
         when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.of(jaCurtido));
 
         service.alternarCurtida(1L, 7L);
@@ -67,7 +70,7 @@ class PostServiceTest {
 
     @Test
     void curtirPostInexistenteDa404SemGravarNada() {
-        when(postRepository.existsById(404L)).thenReturn(false);
+        when(postRepository.buscarVisivel(404L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.alternarCurtida(404L, 7L))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
@@ -117,7 +120,7 @@ class PostServiceTest {
 
     @Test
     void comentarEmPostInexistenteDa404SemGravarNada() {
-        when(postRepository.existsById(404L)).thenReturn(false);
+        when(postRepository.buscarVisivel(404L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.comentar(404L, 7L, "boa!"))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
@@ -130,7 +133,7 @@ class PostServiceTest {
      * nao pode desfazer a curtida, como o toggle da tela faria. */
     @Test
     void curtirOQueJaEstaCurtidoNaoMudaNada() {
-        when(postRepository.existsById(1L)).thenReturn(true);
+        when(postRepository.buscarVisivel(1L, 7L)).thenReturn(Optional.of(new Post(9L, "post", LocalDateTime.now())));
         when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L))
                 .thenReturn(Optional.of(new Curtida(1L, 7L, LocalDateTime.now())));
 
@@ -142,7 +145,7 @@ class PostServiceTest {
 
     @Test
     void curtirConcorrenteQueColideNaConstraintNaoVira500() {
-        when(postRepository.existsById(1L)).thenReturn(true);
+        when(postRepository.buscarVisivel(1L, 7L)).thenReturn(Optional.of(new Post(9L, "post", LocalDateTime.now())));
         when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.empty());
         when(curtidaRepository.save(any()))
                 .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
@@ -152,7 +155,7 @@ class PostServiceTest {
 
     @Test
     void descurtirOQueNaoEstaCurtidoNaoEErro() {
-        when(postRepository.existsById(1L)).thenReturn(true);
+        when(postRepository.buscarVisivel(1L, 7L)).thenReturn(Optional.of(new Post(9L, "post", LocalDateTime.now())));
         when(curtidaRepository.findByPostIdAndUsuarioId(1L, 7L)).thenReturn(Optional.empty());
 
         assertThatCode(() -> service.descurtir(1L, 7L)).doesNotThrowAnyException();
@@ -162,7 +165,7 @@ class PostServiceTest {
 
     @Test
     void curtirEDescurtirPostInexistenteDa404() {
-        when(postRepository.existsById(404L)).thenReturn(false);
+        when(postRepository.buscarVisivel(404L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.curtir(404L, 7L)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> service.descurtir(404L, 7L)).isInstanceOf(ResponseStatusException.class);

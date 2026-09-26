@@ -2,6 +2,11 @@ package com.corpoforte.tracker.config;
 
 import com.corpoforte.tracker.IntegrationTestBase;
 import com.corpoforte.tracker.OidcTestUsers;
+import com.corpoforte.tracker.atividade.Atividade;
+import com.corpoforte.tracker.atividade.AtividadeLivreRequisicao;
+import com.corpoforte.tracker.atividade.AtividadeRepository;
+import com.corpoforte.tracker.atividade.AtividadeService;
+import com.corpoforte.tracker.atividade.SeriesDeExercicio;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisica;
 import com.corpoforte.tracker.avaliacao.AvaliacaoFisicaService;
 import com.corpoforte.tracker.feed.Comentario;
@@ -10,8 +15,12 @@ import com.corpoforte.tracker.feed.Post;
 import com.corpoforte.tracker.feed.PostRepository;
 import com.corpoforte.tracker.feed.PostService;
 import com.corpoforte.tracker.feed.PostView;
+import com.corpoforte.tracker.treino.TreinoDoDia;
+import com.corpoforte.tracker.treino.TreinoDoDiaRepository;
 import com.corpoforte.tracker.treino.TreinoDoDiaService;
 import com.corpoforte.tracker.treino.TreinoDoDiaView;
+import com.corpoforte.tracker.treino.TreinoItem;
+import com.corpoforte.tracker.treino.TreinoItemRepository;
 import com.corpoforte.tracker.usuario.Equipamento;
 import com.corpoforte.tracker.usuario.Usuario;
 import com.corpoforte.tracker.usuario.UsuarioAtualService;
@@ -24,7 +33,9 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,6 +91,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *                       tela (PerfilForm, AvaliacaoFisicaForm,
  *                       RegistroPesoForm, PostForm, ComentarioForm) e
  *                       EquipamentosRequisicao - nenhum com campo de ID.
+ *                       Fase 16: os primeiros IDs vindos no CORPO -
+ *                       FinalizacaoRequisicao.ajustes[].itemId (item do
+ *                       treino, so' vale se for um item marcado hoje da
+ *                       conta do token; qualquer outro da o mesmo 400, sem
+ *                       dizer se o id existe) e SeriesDeExercicio.exercicioId
+ *                       (catalogo, o mesmo pra todo mundo; inexistente da
+ *                       400).
  *
  * Levantamento completo, os endpoints do app (grep por
  * @GetMapping/@PostMapping em todos os controllers):
@@ -137,11 +155,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   DELETE /api/v1/usuarios/{username}/seguimento      RECEBE username (Fase 13) - so' desfaz o seguir do proprio token
  *   GET  /api/v1/usuarios/{username}/seguidores        RECEBE username (Fase 13) - permitido cruzado
  *   GET  /api/v1/usuarios/{username}/seguindo          RECEBE username (Fase 13) - permitido cruzado
+ *   PUT  /api/v1/usuarios/{username}/bloqueio          RECEBE username (Fase 14) - permitido cruzado (bloquear e' a funcao)
+ *   DELETE /api/v1/usuarios/{username}/bloqueio        RECEBE username (Fase 14) - so' desfaz o bloqueio do proprio token
+ *   GET  /api/v1/bloqueios                             sem ID (Fase 14; so' os bloqueios da propria conta)
+ *   GET  /api/v1/privacidade, PUT /api/v1/privacidade  sem ID (Fase 14)
+ *   POST /api/v1/posts (multipart)                     sem ID (Fase 15; nome de arquivo do cliente e' descartado)
+ *   PUT  /api/v1/perfil/foto, DELETE /api/v1/perfil/foto  sem ID (Fase 15; so' a propria conta)
+ *   GET  /arquivos/{pasta}/{nome}                      RECEBE chave de arquivo (Fase 15) - fora de /api e sem
+ *                                                      login: quem autoriza e' a assinatura HMAC da URL, que so'
+ *                                                      e' gerada depois da regra de visibilidade. Sem assinatura
+ *                                                      valida, 404 (FotosPostApiIT, ArmazenamentoEmDiscoTest).
+ *   POST /api/v1/treino-do-dia/finalizar               RECEBE ID no corpo (Fase 16; itemId dos ajustes) - proibido cruzado
+ *   POST /api/v1/atividades                            RECEBE ID no corpo (Fase 16; exercicioId do catalogo compartilhado)
+ *   GET  /api/v1/atividades                            sem ID (Fase 16; so' o diario da propria conta, cursor e' posicao)
+ *   GET  /api/v1/atividades/{atividadeId}              RECEBE ID (Fase 16) - proibido cruzado
+ *   DELETE /api/v1/atividades/{atividadeId}            RECEBE ID (Fase 16) - proibido cruzado
  *
- * Conclusao: 21 dos 57 endpoints aceitam um identificador de recurso
+ * Fase 14: acesso cruzado PERMITIDO passou a depender da relacao entre as
+ * contas. Todo endpoint que le ou age sobre post ou conta de outra pessoa
+ * passa pela RegraDeVisibilidade/RegraDeBloqueio, e o que ela esconde
+ * responde o mesmo 404 de ID inexistente. A matriz completa esta em
+ * VisibilidadeMatrizIT; aqui ficam so' os casos de bloqueio por id.
+ *
+ * Conclusao: 28 dos 71 endpoints aceitam um identificador de recurso
  * vindo do cliente (id numerico ou, desde a Fase 12, username),
  * confirmado nos quatro vetores (não só @PathVariable). Os outros
- * 36 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
+ * 43 operam exclusivamente sobre "o usuario atual" (Usuario resolvido via
  * UsuarioAtualService.obterUsuarioAtual, pela sessao ou pelo access
  * token) ou sobre enums de filtro sem significado de ID. Os da API
  * repetem as regras dos equivalentes da tela e tem teste proprio abaixo,
@@ -204,6 +243,18 @@ class EndpointsComIdIT extends IntegrationTestBase {
 
     @Autowired
     private ComentarioRepository comentarioRepository;
+
+    @Autowired
+    private AtividadeService atividadeService;
+
+    @Autowired
+    private AtividadeRepository atividadeRepository;
+
+    @Autowired
+    private TreinoDoDiaRepository treinoDoDiaRepository;
+
+    @Autowired
+    private TreinoItemRepository treinoItemRepository;
 
     private final OidcUser usuarioA = OidcTestUsers.principal("sub-endpoint-id-a", "Usuaria A", "a@exemplo.com");
     private final OidcUser usuarioB = OidcTestUsers.principal("sub-endpoint-id-b", "Usuario B", "b@exemplo.com");
@@ -506,5 +557,78 @@ class EndpointsComIdIT extends IntegrationTestBase {
                 .andExpect(jsonPath("$.podeApagar").value(false));
         mockMvc.perform(get("/api/v1/posts/999999").header(HttpHeaders.AUTHORIZATION, bearer(b)))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---- Bloqueio (Fase 14) ----
+
+    /**
+     * Bloquear a conta de outra pessoa pelo username e' a funcao
+     * (permitido). O que o bloqueio garante: o bloqueado recebe pra post e
+     * perfil de quem bloqueou exatamente o 404 de um id que nao existe.
+     */
+    @Test
+    void apiBloqueadoRecebeOMesmo404DeIdInexistente() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        Post postDeA = postRepository.saveAndFlush(new Post(a.getId(), "Post da A", LocalDateTime.now()));
+
+        mockMvc.perform(put("/api/v1/usuarios/" + b.getUsername() + "/bloqueio")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/posts/" + postDeA.getId()).header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put("/api/v1/posts/" + postDeA.getId() + "/curtida").header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/usuarios/" + a.getUsername()).header(HttpHeaders.AUTHORIZATION, bearer(b)))
+                .andExpect(status().isNotFound());
+    }
+
+    // ---- Diario de treino (Fase 16): privado, acesso cruzado sempre proibido ----
+
+    @Test
+    void apiUsuarioBNaoLeNemApagaAtividadeDaA() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        Atividade atividadeDeA = atividadeService.registrarLivre(a, new AtividadeLivreRequisicao(
+                null, null, null, "treino da A", List.of(new SeriesDeExercicio(1L, List.of(10)))));
+        String rota = "/api/v1/atividades/" + atividadeDeA.getId();
+
+        mockMvc.perform(get(rota).header(HttpHeaders.AUTHORIZATION, bearer(b))).andExpect(status().isNotFound());
+        mockMvc.perform(delete(rota).header(HttpHeaders.AUTHORIZATION, bearer(b))).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/atividades/999999").header(HttpHeaders.AUTHORIZATION, bearer(a)))
+                .andExpect(status().isNotFound());
+
+        assertThat(atividadeRepository.existsById(atividadeDeA.getId())).isTrue();
+    }
+
+    /**
+     * O id vem no corpo, nao na rota: B finaliza o proprio treino mandando
+     * um ajuste com o id de um item do treino de A. Recusado com o mesmo 400
+     * de item nao marcado, B continua sem atividade e o item de A continua
+     * como estava.
+     */
+    @Test
+    void apiAjusteComItemDoTreinoDeOutroUsuarioEhRecusado() throws Exception {
+        Usuario a = contaComOnboarding(usuarioA);
+        Usuario b = contaComOnboarding(usuarioB);
+        TreinoItem itemDeA = itemMarcadoHoje(a);
+        itemMarcadoHoje(b);
+
+        mockMvc.perform(post("/api/v1/treino-do-dia/finalizar").header(HttpHeaders.AUTHORIZATION, bearer(b))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ajustes\": [{\"itemId\": %d, \"series\": [1]}]}".formatted(itemDeA.getId())))
+                .andExpect(status().isBadRequest());
+
+        assertThat(atividadeService.paginaDoUsuario(b.getId(), null, 10).itens()).isEmpty();
+        assertThat(atividadeService.paginaDoUsuario(a.getId(), null, 10).itens()).isEmpty();
+        assertThat(treinoItemRepository.findById(itemDeA.getId()).orElseThrow().isConcluido()).isTrue();
+    }
+
+    private TreinoItem itemMarcadoHoje(Usuario usuario) {
+        TreinoDoDia treino = treinoDoDiaRepository.save(new TreinoDoDia(usuario.getId(), LocalDate.now()));
+        TreinoItem item = new TreinoItem(treino.getId(), 1L, 3, 8);
+        item.definirConclusao(true);
+        return treinoItemRepository.save(item);
     }
 }

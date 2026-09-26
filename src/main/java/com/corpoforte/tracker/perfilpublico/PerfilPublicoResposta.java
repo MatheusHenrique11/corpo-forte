@@ -16,9 +16,10 @@ public record PerfilPublicoResposta(Long id, String username, String nome, Strin
     public record Contagens(long posts, long seguidores, long seguindo) {
     }
 
-    static PerfilPublicoResposta de(Usuario usuario, long posts, ContagemSocial social, boolean seguidoPorMim) {
+    static PerfilPublicoResposta de(Usuario usuario, String fotoUrl, long posts, ContagemSocial social,
+                                    boolean seguidoPorMim) {
         return new PerfilPublicoResposta(usuario.getId(), usuario.getUsername(), usuario.getNome(),
-                usuario.getFotoUrl(), usuario.getBio(),
+                fotoUrl, usuario.getBio(),
                 new Contagens(posts, social.seguidores(), social.seguindo()), seguidoPorMim);
     }
 }

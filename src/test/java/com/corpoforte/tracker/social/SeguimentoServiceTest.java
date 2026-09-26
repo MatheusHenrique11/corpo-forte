@@ -23,7 +23,8 @@ import static org.mockito.Mockito.when;
 class SeguimentoServiceTest {
 
     private final SeguimentoRepository seguimentoRepository = mock(SeguimentoRepository.class);
-    private final SeguimentoService service = new SeguimentoService(seguimentoRepository, mock(UsuarioRepository.class));
+    private final SeguimentoService service = new SeguimentoService(seguimentoRepository,
+            mock(BloqueioRepository.class), mock(UsuarioRepository.class));
 
     /** Duplo clique no "seguir": a segunda requisicao esbarra no unique e
      * isso nao pode virar 500 - o seguimento que a pessoa queria ja existe. */

@@ -69,6 +69,7 @@ class TreinoDoDiaApiIT extends IntegrationTestBase {
                 .andExpect(jsonPath("$.itens", hasSize(4)))
                 .andExpect(jsonPath("$.itens[0].exercicio.id", notNullValue()))
                 .andExpect(jsonPath("$.itens[0].exercicio.nome", notNullValue()))
+                .andExpect(jsonPath("$.itens[0].exercicio.medida", notNullValue()))
                 .andExpect(jsonPath("$.movimentosSemOpcao", containsInAnyOrder("PUXAR_VERTICAL", "PUXAR_HORIZONTAL")))
                 .andExpect(jsonPath("$.ciclo.semanaAtual").value(1))
                 .andExpect(jsonPath("$.ciclo.totalSemanas").value(8));
